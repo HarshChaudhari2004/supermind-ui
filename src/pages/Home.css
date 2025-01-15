@@ -1,0 +1,265 @@
+/* supermind-ui/src/pages/Home.css */
+
+/* Import Lexend Deca font from Google Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Lexend+Deca&display=swap');
+
+:root {
+  --bg-color: #000;
+}
+
+:root.light-theme {
+  --bg-color: #fff;
+}
+
+body {
+  margin: 0;
+  font-family: "Lexend Deca", sans-serif;
+  /* Apply Lexend Deca font */
+  background-color: var(--bg-color);
+}
+
+.home-container {
+  margin-left: 80px;
+  width: calc(100% - 80px);
+  box-sizing: border-box;
+  position: relative;
+  overflow-x: hidden;
+}
+
+.header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  /* padding: 20px; */
+  background: linear-gradient(to left ,#A100FF 0%, #14051C 100%, transparent);
+  position: relative;  /* Changed from fixed */
+  height: 100px;
+  width: 100%;
+  box-sizing: border-box;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.5);
+}
+
+.search-bar {
+  position: sticky;
+  top: 0;
+  width: 100%;
+  z-index: 1001;
+  display: flex;
+  color: white;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 20px;
+  /* padding: 20px; */
+  backdrop-filter: blur(5px);
+}
+
+.search-bar input {
+  padding: 10px 20px;
+  border: transparent;
+  outline: transparent;
+  font-size: 50px;
+  font-weight: bold;
+  color: #ffffff;
+  background-color: transparent;
+  width: 90%;
+}
+
+.search-bar input::placeholder {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+/* Left Sidebar styles */
+/* ...existing code... */
+
+.content {
+  padding: 20px;
+}
+
+.my-masonry-grid {
+  display: flex;
+  margin-left: -24px; /* Adjust to match gutter size */
+  width: auto;
+}
+
+.my-masonry-grid_column {
+  padding-left: 24px; /* Adjust to match gutter size */
+  background-clip: padding-box;
+}
+
+.my-masonry-grid_column > .card {
+  margin-bottom: 24px; /* Adjust to match gutter size */
+}
+
+/* Card styles */
+.card {
+  position: relative;
+  border-radius: 12px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.1);
+  transition: transform 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+}
+
+.card:hover {
+  z-index: 1;
+  transform: translateY(-5px);
+  box-shadow: 0px 16px 32px rgba(174, 0, 255, 0.9);
+}
+
+.no-content {
+  text-align: center;
+  font-size: 1.2rem;
+  margin-top: 20px;
+}
+
+.left-sidebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  /* border-right: 1px double rgba(189, 189, 189, 0.7);  70% opacity */
+  background: linear-gradient(90deg, #A100FF 0%, #14051C 100%);
+  width: 80px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  /* Pushes buttons to bottom */
+  padding-top: 20px;
+  padding-bottom: 20px;
+}
+
+.sidebar-top {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.logo img {
+  width: 70px;
+  height: 70px;
+}
+
+.logo-text {
+  color: #fff;
+  font-size: 2rem;
+  padding: 80px;
+  font-weight: bold;
+  rotate: 90deg;
+}
+
+.sidebar-bottom {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.left-sidebar button {
+  background-color: transparent;
+  border: none;
+  cursor: pointer;
+}
+
+.left-sidebar button img {
+  width: 36px;
+  height: 36px;
+  transition: transform 0.3s ease-in-out;
+}
+
+.left-sidebar button:hover img {
+  transform: scale(1.1);
+}
+
+.theme-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
+}
+
+.theme-icon {
+  color: white;
+  transition: transform 0.5s ease-in-out;
+}
+
+.theme-toggle:hover .theme-icon {
+  transform: rotate(240deg);
+}
+
+@keyframes rotate {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(240deg);
+  }
+}
+
+#settings-button:hover {
+  animation: spin 1s ease-in-out;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(180deg);
+  }
+}
+
+/* Responsive styles */
+@media (max-width: 1200px) {
+  .popup-content {
+    flex-direction: column;
+    height: auto;
+  }
+
+  .popup-left,
+  .popup-right {
+    max-width: 100%;
+    width: 100%;
+  }
+
+  .popup-left {
+    height: 50vh;
+  }
+
+  .popup-right {
+    height: auto;
+    padding: 16px;
+  }
+}
+
+@media (max-width: 768px) {
+  .popup-content {
+    width: 95%;
+  }
+
+  .popup-left {
+    height: 40vh;
+  }
+
+  .popup-right {
+    padding: 12px;
+  }
+}
+
+@media (max-width: 480px) {
+  .popup-content {
+    width: 100%;
+    height: 100vh;
+  }
+
+  .popup-left {
+    height: 30vh;
+  }
+
+  .popup-right {
+    padding: 8px;
+  }
+}

@@ -1,0 +1,332 @@
+@import url('https://fonts.googleapis.com/css2?family=Lexend+Deca&display=swap');
+
+body::-webkit-scrollbar {
+  display: none;
+}
+
+.popup-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  /* background-color: rgba(0, 0, 0, 0.597); */
+  backdrop-filter: blur(3px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999; /* Ensure top layer */
+}
+
+.popup-content {
+  display: flex;
+  width: 90%;
+  height: 90vh;
+  background: #1E1E1E;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  font-family: 'Lexend Deca', sans-serif;
+}
+
+.popup-content.light-theme {
+  background: #fff;
+  color: #000;
+}
+
+.popup-content.light-theme .popup-right {
+  background: #fff;
+  color: #000;
+}
+
+.popup-content.light-theme .popup-left {
+  background: #000;
+}
+
+.popup-content.light-theme .section-label {
+  color: #444;
+}
+
+.popup-content.light-theme textarea {
+  color: #000;
+  background: rgba(0, 0, 0, 0.05);
+  border-color: rgba(0, 0, 0, 0.1);
+}
+
+.popup-content.light-theme textarea::placeholder {
+  color: rgba(0, 0, 0, 0.5);
+}
+
+.popup-left {
+  flex: 3;
+  background: #000;
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  overflow: hidden;
+}
+
+.popup-left iframe,
+.popup-left img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+.popup-left .visit-button {
+  position: absolute;
+  bottom: 8px;
+  right: 8px;
+}
+
+.popup-right {
+  flex: 2;
+  padding: 24px;
+  background: #1E1E1E;
+  color: white;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  max-width: 35%;
+  overflow-y: auto; /* Allow vertical scrolling */
+  max-height: 90vh; /* Limit the height */
+  box-sizing: border-box;
+  overflow-x: hidden; /* Prevent horizontal scrollbar */
+}
+
+.popup-right.light-theme {
+  background: #fff;
+  color: #000;
+}
+
+.popup-right h2 {
+  font-size: 24px;
+  color: inherit;
+  word-wrap: break-word;
+  white-space: pre-wrap; /* Ensures long titles break correctly */
+  text-align: justify;
+  max-height: 200px; /* Adjust as needed */
+  overflow: hidden; /* Prevent overflow */
+}
+
+/* Customize scrollbar for .popup-right h2 */
+.tags::-webkit-scrollbar {
+  width: 8px; /* Scrollbar width */
+}
+.tags::-webkit-scrollbar-track {
+  background: #333; /* Track background */
+}
+.tags::-webkit-scrollbar-thumb {
+  background: #AE00FF; /* Thumb color */
+  border-radius: 4px;
+}
+
+.popup-right p {
+  font-size: 14px;
+  line-height: 1.6;
+  color: inherit;
+  /* margin-bottom: 16px; */
+  text-align: justify;
+  max-height: 777px; /* Adjust as needed */
+  overflow-y: auto;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+
+/* Customize scrollbar for .popup-right p */
+.summary-text::-webkit-scrollbar {
+  width: 7px; /* Scrollbar width */
+}
+.summary-text::-webkit-scrollbar-track {
+  background: #333; /* Track background */
+}
+.summary-text::-webkit-scrollbar-thumb {
+  height: 2px;
+  background: #AE00FF; /* Thumb color */
+  border-radius: 4px;
+}
+
+.section-label {
+  font-size: 16px;
+  font-weight: bold;
+  margin: 2px;
+  padding: 2px;
+  color: #e1e1e1;
+  display: flex;
+  /* align-items: right; */
+  gap: 8px;
+  cursor: pointer;
+}
+
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+  overflow: auto;
+  cursor: pointer;
+}
+
+.tag {
+  background: rgba(174, 0, 255, 0.2);
+  color: #AE00FF;
+  padding: 6px 12px;
+  border-radius: 16px;
+  font-size: 14px;
+}
+
+.tags input {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: white;
+  padding: 6px 12px;
+  border-radius: 16px;
+  font-size: 12px;
+  outline: none;
+}
+
+.tags input::placeholder {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+textarea {
+  min-height: 120px;
+  max-height: 200px; /* Prevent textarea from expanding too far */
+  overflow-y: auto;
+  font-size: 25px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  padding: 12px;
+  margin-bottom: 16px;
+  resize: none; /* Disable resizing */
+  outline: none;
+}
+
+.popup-buttons {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+}
+
+.popup-buttons button {
+  width: 48px;
+  height: 48px;
+  padding: 12px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: transparent;
+  border: none;
+  cursor: pointer;
+}
+
+.popup-buttons button img {
+  width: 24px;
+  height: 24px;
+}
+
+.popup-buttons button:first-child {
+  background: #FF3B3B;
+  color: white;
+}
+
+.popup-buttons button:nth-child(2) {
+  background: green;
+  color: white;
+}
+
+.popup-buttons button:last-child {
+  background: #AE00FF;
+  color: white;
+}
+
+.popup-buttons button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(174, 0, 255, 0.2);
+}
+
+.fallback-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  background: #000;
+  padding: 20px;
+}
+
+.fallback-image {
+  width: 100%;
+  height: auto;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  border-radius: 8px;
+}
+
+.visit-button {
+  position: absolute;
+  bottom: 8px;
+  right: 8px;
+  align-self: flex-end;
+  padding: 8px 16px;
+  background: #AE00FF;
+  color: white;
+  border-radius: 4px;
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+
+.visit-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(174, 0, 255, 0.2);
+}
+
+.truncated-title {
+  cursor: pointer;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  max-width: 100%;
+  display: block;
+}
+
+.truncated-title.full-title {
+  white-space: normal;
+  overflow: scroll;
+}
+
+.truncated-title::-webkit-scrollbar {
+  display: none;
+}
+
+.instagram-content {
+  position: relative;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: #000;
+  padding: 20px;
+}
+
+.instagram-thumbnail-wrapper {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  max-height: calc(100% - 60px); /* Account for button height */
+}
+
+.instagram-image {
+  height: 100%;
+  width: auto;
+  aspect-ratio: 9/16;
+  object-fit: contain;
+  border-radius: 8px;
+}
