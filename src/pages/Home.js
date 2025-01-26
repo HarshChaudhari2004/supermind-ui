@@ -4,6 +4,7 @@ import Masonry from 'react-masonry-css'; // Added import
 import "./Home.css";
 import Card from "../components/Card";
 import Popup from "../components/Popup"; // Updated import
+import { Analytics } from "@vercel/analytics/react"
 
 function Home() {
   const [cardsData, setCardsData] = useState([]);
@@ -162,5 +163,5 @@ function Home() {
     </div>
   );
 }
-
+<Analytics/>
 export default Home;
