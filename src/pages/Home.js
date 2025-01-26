@@ -99,7 +99,7 @@ function Home() {
             />
           </button>
           <button id="ai-button">
-            <img src="/assets/ai.svg" alt="AI" />
+            <img src="/assets/AI-logo.png" alt="AI" />
           </button>
           <button id="layout-button" onClick={toggleLayoutOptions}>
             <img src="/assets/layout.png" alt="Layout" />
