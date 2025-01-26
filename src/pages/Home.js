@@ -28,7 +28,7 @@ function Home() {
   };
 
   useEffect(() => {
-    fetch("http://127.0.0.1:8000/api/video-data/")
+    fetch("https://supermind-9fii.onrender.com/api/video-data/")
       .then((response) => {
         if (!response.ok) throw new Error("Error fetching data");
         return response.json();
