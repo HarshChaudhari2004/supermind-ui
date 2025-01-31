@@ -29,7 +29,7 @@ function Home() {
   };
 
   useEffect(() => {
-    fetch("https://supermind-9fii.onrender.com/api/video-data/")
+    fetch("https://supermind-production.up.railway.app/api/video-data/")
       .then((response) => {
         if (!response.ok) throw new Error("Error fetching data");
         return response.json();
