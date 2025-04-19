@@ -40,8 +40,7 @@ body {
 }
 
 .search-bar {
-  position: sticky;
-  top: 0;
+  position: relative;
   width: 100%;
   z-index: 1001;
   display: flex;
@@ -49,8 +48,31 @@ body {
   align-items: flex-end;
   justify-content: space-between;
   gap: 20px;
-  /* padding: 20px; */
   backdrop-filter: blur(5px);
+}
+
+.search-input-wrapper {
+  position: relative;
+  width: 90%;
+  display: flex;
+  align-items: center;
+}
+
+.search-spinner {
+  position: absolute;
+  right: 20px;
+  width: 24px;
+  height: 24px;
+  border: 3px solid rgba(174, 0, 255, 0.1);
+  border-radius: 50%;
+  border-top-color: rgba(174, 0, 255, 0.8);
+  animation: spin 0.6s linear infinite;
+  pointer-events: none;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }
 
 .search-bar input {
@@ -61,7 +83,13 @@ body {
   font-weight: bold;
   color: #ffffff;
   background-color: transparent;
-  width: 90%;
+  width: 100%;
+  transition: all 0.3s ease;
+}
+
+.search-bar input:focus {
+  outline: none;
+  box-shadow: 0 4px 12px rgba(174, 0, 255, 0.1);
 }
 
 .search-bar input::placeholder {
@@ -77,17 +105,17 @@ body {
 
 .my-masonry-grid {
   display: flex;
-  margin-left: -24px; /* Adjust to match gutter size */
+  margin-left: -30px; /* Increased negative margin for better spacing */
   width: auto;
 }
 
 .my-masonry-grid_column {
-  padding-left: 24px; /* Adjust to match gutter size */
+  padding-left: 30px; /* Increased padding to match margin */
   background-clip: padding-box;
 }
 
-.my-masonry-grid_column > .card {
-  margin-bottom: 24px; /* Adjust to match gutter size */
+.my-masonry-grid_column > div {
+  margin-bottom: 30px; /* Increased bottom margin for vertical spacing */
 }
 
 /* Card styles */
@@ -210,6 +238,25 @@ body {
   to {
     transform: rotate(180deg);
   }
+}
+
+.loading-indicator {
+  width: 100%;
+  text-align: center;
+  padding: 20px;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.loading-indicator::after {
+  content: '';
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  margin-left: 10px;
+  border: 2px solid rgba(174, 0, 255, 0.2);
+  border-top-color: rgba(174, 0, 255, 1);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
 }
 
 /* Responsive styles */
