@@ -27,6 +27,9 @@ function Home() {
   const [page, setPage] = useState(0);
   const PAGE_SIZE = 50;
   const observer = useRef();
+  const [showNoteModal, setShowNoteModal] = useState(false);
+  const [newNoteContent, setNewNoteContent] = useState("");
+  const [noteSaving, setNoteSaving] = useState(false);
 
   const performSearch = useCallback(async (query, pageNumber = 0) => {
     const searchId = Date.now();
@@ -221,6 +224,19 @@ function Home() {
     setShowLayoutOptions(false);
   };
 
+  // Create the display data with the "Add New Note" card at the beginning
+  const displayData = searchQuery.trim() === '' ? 
+    [{
+      id: 'add-note-card',
+      title: 'Add New Note',
+      video_type: 'note',
+      thumbnail_url: '/assets/notes.png',
+      original_url: null,
+      date_added: null,
+      content: 'Click to create a new note',
+      isAddNoteCard: true
+    }, ...cardsData] : cardsData;
+
   return (
     <div className={`home-container ${isDarkTheme ? 'dark-theme' : 'light-theme'}`}>
       {/* Header */}
@@ -286,16 +302,16 @@ function Home() {
 
       {/* Content */}
       <main className="content">
-        {cardsData.length > 0 ? (
+        {displayData.length > 0 ? (
           <Masonry
             breakpointCols={breakpointColumnsObj}
             className="my-masonry-grid"
             columnClassName="my-masonry-grid_column"
           >
-            {cardsData.map((card, index) => (
+            {displayData.map((card, index) => (
               <div
                 key={card.id || index}
-                ref={index === cardsData.length - 1 ? lastCardElementRef : null}
+                ref={index === displayData.length - 1 ? lastCardElementRef : null}
               >
                 <Card
                   thumbnailUrl={card.thumbnail_url}
@@ -303,15 +319,20 @@ function Home() {
                   type={card.video_type}
                   url={card.original_url}
                   dateAdded={card.date_added}
+                  content={card.user_notes || card.content}
                   onClick={() => {
-                    setSelectedCard({
-                      ...card,
-                      url: card.original_url,
-                      Title: card.title,
-                      Summary: card.summary,
-                      Tags: card.tags,
-                      video_type: card.video_type
-                    });
+                    if (card.isAddNoteCard) {
+                      setShowNoteModal(true);
+                    } else {
+                      setSelectedCard({
+                        ...card,
+                        url: card.original_url,
+                        Title: card.title,
+                        Summary: card.summary,
+                        Tags: card.tags,
+                        video_type: card.video_type
+                      });
+                    }
                   }}
                 />
               </div>
@@ -321,6 +342,74 @@ function Home() {
           <p className="no-content">No matching content found</p>
         )}
       </main>
+
+      {/* Note Creation Modal */}
+      {showNoteModal && (
+        <div className="popup-overlay" onClick={() => setShowNoteModal(false)}>
+          <div className="popup-content" onClick={e => e.stopPropagation()}>
+            <div className="popup-right">
+              <h2>Add New Note</h2>
+              <textarea
+                placeholder="Type your note here..."
+                value={newNoteContent}
+                onChange={e => setNewNoteContent(e.target.value)}
+                style={{ minHeight: 120, fontSize: 18, color: isDarkTheme ? 'white' : 'black' }}
+              />
+              <div style={{ display: 'flex', gap: 16, marginTop: 16 }}>
+                <button
+                  onClick={async () => {
+                    if (!newNoteContent.trim()) return;
+                    setNoteSaving(true);
+                    try {
+                      const { data: { user } } = await supabase.auth.getUser();
+                      if (!user?.id) throw new Error('Not authenticated');
+                      
+                      // Generate a random ID like the existing records
+                      const noteId = Math.random().toString(36).substr(2, 9);
+                      
+                      const { error } = await supabase
+                        .from('content')
+                        .insert({
+                          id: noteId,
+                          user_id: user.id,
+                          title: newNoteContent.split(/[.!?\n]/)[0].slice(0, 100) || 'Quick Note',
+                          video_type: 'note',
+                          tags: 'quick_note',
+                          user_notes: newNoteContent,
+                          date_added: new Date().toISOString(),
+                          thumbnail_url: null,
+                          original_url: null,
+                          channel_name: 'Quick Notes'
+                        });
+                      if (error) throw error;
+                      
+                      setNewNoteContent("");
+                      setShowNoteModal(false);
+                      performSearch(searchQuery, 0); // Refresh cards
+                      alert('Note saved successfully!');
+                    } catch (err) {
+                      alert(err.message || 'Failed to save note');
+                    } finally {
+                      setNoteSaving(false);
+                    }
+                  }}
+                  disabled={noteSaving || !newNoteContent.trim()}
+                  style={{ padding: '12px 24px', borderRadius: 8, background: '#AE00FF', color: 'white', fontWeight: 'bold', fontSize: 18, border: 'none', cursor: 'pointer' }}
+                >
+                  {noteSaving ? 'Saving...' : 'Save Note'}
+                </button>
+                <button
+                  onClick={() => setShowNoteModal(false)}
+                  style={{ padding: '12px 24px', borderRadius: 8, background: '#333', color: 'white', fontWeight: 'bold', fontSize: 18, border: 'none', cursor: 'pointer' }}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {selectedCard && (
         <Popup
           cardData={selectedCard}
@@ -328,9 +417,9 @@ function Home() {
           isDarkTheme={isDarkTheme}
         />
       )}
+      <Analytics/>
     </div>
   );
 }
 
-<Analytics/>
 export default Home;

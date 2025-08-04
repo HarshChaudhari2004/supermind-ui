@@ -72,6 +72,12 @@ function Card({ thumbnailUrl, url, title, type, dateAdded, content, onClick }) {
           setIsLoading(false);
         }}
       />
+      {/* Show user notes if they exist */}
+      {content && (
+        <div className="card-notes-overlay">
+          <div className="notes-text">{content}</div>
+        </div>
+      )}
     </div>
   );
 }

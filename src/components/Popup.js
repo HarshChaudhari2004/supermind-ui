@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import './Popup.css';
+import { supabase } from '../lib/supabase';
 
 // Format URL for iframe src based on domain
 const getIframeSrc = (url) => {
@@ -18,6 +19,7 @@ const getIframeSrc = (url) => {
 export default function Popup({ cardData, onClose, isDarkTheme }) {
   // State variables
   const [notes, setNotes] = useState(cardData?.user_notes || ''); // Load existing notes
+  const [noteSaving, setNoteSaving] = useState(false);
   const [tags, setTags] = useState(
     cardData?.Tags ? 
     cardData.Tags.split(',').map(tag => tag.trim()) : 
@@ -208,7 +210,28 @@ export default function Popup({ cardData, onClose, isDarkTheme }) {
             <div className="popup-buttons">
               <button title="Delete" style={{ backgroundImage: 'url("/assets/delete.png")', backgroundSize: '20px 20px', backgroundRepeat: 'no-repeat', backgroundPosition: 'center' }}/>
               <button title="Share" style={{ backgroundImage: 'url("/assets/share.png")', backgroundSize: '20px 20px', backgroundRepeat: 'no-repeat', backgroundPosition: 'center' }}/>
-              <button title="Save" style={{ backgroundImage: 'url("/assets/save.png")', backgroundSize: '20px 20px', backgroundRepeat: 'no-repeat', backgroundPosition: 'center' }}/>
+              <button
+                title="Save"
+                style={{ backgroundImage: 'url("/assets/save.png")', backgroundSize: '20px 20px', backgroundRepeat: 'no-repeat', backgroundPosition: 'center' }}
+                disabled={noteSaving}
+                onClick={async () => {
+                  if (!notes.trim()) return;
+                  setNoteSaving(true);
+                  try {
+                    const { error } = await supabase
+                      .from('content')
+                      .update({ user_notes: notes })
+                      .eq('id', cardData.id);
+                    if (error) throw error;
+                    onClose();
+                    window.location.reload(); // Quick refresh for now
+                  } catch (err) {
+                    alert(err.message || 'Failed to save note');
+                  } finally {
+                    setNoteSaving(false);
+                  }
+                }}
+              />
             </div>
           </div>
         </div>
@@ -284,7 +307,28 @@ export default function Popup({ cardData, onClose, isDarkTheme }) {
           <div className="popup-buttons">
             <button title="Delete" style={{ backgroundImage: 'url("/assets/delete.png")', backgroundSize: '20px 20px', backgroundRepeat: 'no-repeat', backgroundPosition: 'center' }}/>
             <button title="Share" style={{ backgroundImage: 'url("/assets/share.png")', backgroundSize: '20px 20px', backgroundRepeat: 'no-repeat', backgroundPosition: 'center' }}/>
-            <button title="Save" style={{ backgroundImage: 'url("/assets/save.png")', backgroundSize: '20px 20px', backgroundRepeat: 'no-repeat', backgroundPosition: 'center' }}/>
+            <button
+              title="Save"
+              style={{ backgroundImage: 'url("/assets/save.png")', backgroundSize: '20px 20px', backgroundRepeat: 'no-repeat', backgroundPosition: 'center' }}
+              disabled={noteSaving}
+              onClick={async () => {
+                if (!notes.trim()) return;
+                setNoteSaving(true);
+                try {
+                  const { error } = await supabase
+                    .from('content')
+                    .update({ user_notes: notes })
+                    .eq('id', cardData.id);
+                  if (error) throw error;
+                  onClose();
+                  window.location.reload(); // Quick refresh for now
+                } catch (err) {
+                  alert(err.message || 'Failed to save note');
+                } finally {
+                  setNoteSaving(false);
+                }
+              }}
+            />
           </div>
         </div>
       </div>
