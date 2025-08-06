@@ -1,29 +1,58 @@
-import React, { useState, useEffect } from 'react';
-import './Popup.css';
-import { supabase } from '../lib/supabase';
+import React, { useState, useEffect } from "react";
+import "./Popup.css";
+import { supabase } from "../lib/supabase";
+import NoteEditor from "./NoteEditor";
 
-// Format URL for iframe src based on domain
+// Format URL for iframe src based on domain - Now prioritizes Chromium webview
 const getIframeSrc = (url) => {
   if (!url) return null;
-  
-  // Handle YouTube URLs
-  if (url.includes('youtube.com') || url.includes('youtu.be')) {
+
+  // Handle YouTube URLs - these work fine directly (keep direct iframe for optimal performance)
+  if (url.includes("youtube.com") || url.includes("youtu.be")) {
     const videoId = extractYouTubeId(url);
     return `https://www.youtube.com/embed/${videoId}`;
   }
-  
-  // Return other URLs as is
+
+  // For all other websites, we'll prioritize Chromium webview in the component logic
+  // This function now mainly handles YouTube and fallback scenarios
+
+  // List of websites that typically block iframe embedding
+  const blockedDomains = [
+    "reddit.com",
+    "xda-developers.com",
+    "stackoverflow.com",
+    "github.com",
+    "medium.com",
+    "twitter.com",
+    "x.com",
+    "linkedin.com",
+    "facebook.com",
+    "forbes.com",
+    "pinterest.com",
+  ];
+
+  // Check if the URL contains any blocked domains
+  const isBlocked = blockedDomains.some((domain) => url.includes(domain));
+
+  if (isBlocked) {
+    // Use our webpage proxy for blocked domains (fallback)
+    return `http://localhost:8000/api/proxy-webpage/?url=${encodeURIComponent(
+      url
+    )}`;
+  }
+
+  // Return other URLs as is (they might work directly as final fallback)
   return url;
 };
 
 export default function Popup({ cardData, onClose, isDarkTheme }) {
   // State variables
-  const [notes, setNotes] = useState(cardData?.user_notes || ''); // Load existing notes
+  // Markdown note state
+  const [noteContent, setNoteContent] = useState(cardData?.user_notes || "");
   const [noteSaving, setNoteSaving] = useState(false);
+  const [editorFullscreen, setEditorFullscreen] = useState(false);
   const [tags, setTags] = useState(
-    cardData?.Tags ? 
-    cardData.Tags.split(',').map(tag => tag.trim()) : 
-    []
+    cardData?.Tags ? cardData.Tags.split(",").map((tag) => tag.trim()) : []
   );
   const [iframeError, setIframeError] = useState(false);
   const [showFullTitle, setShowFullTitle] = useState(false);
@@ -31,25 +60,71 @@ export default function Popup({ cardData, onClose, isDarkTheme }) {
   const [showFullSummary, setShowFullSummary] = useState(false);
   const [showFullTags, setShowFullTags] = useState(false);
   const [instagramEmbedHTML, setInstagramEmbedHTML] = useState(null);
+  const [isElectron, setIsElectron] = useState(false);
+  const [useWebview, setUseWebview] = useState(false);
+  const [loadingStrategy, setLoadingStrategy] = useState("webview"); // Start with webview
+  // Popup size state (persisted)
+  const [popupSize, setPopupSize] = useState(() => {
+    const saved = localStorage.getItem("popupSize");
+    if (saved) {
+      try {
+        const obj = JSON.parse(saved);
+        if (
+          obj &&
+          typeof obj.width === "number" &&
+          typeof obj.height === "number"
+        )
+          return obj;
+      } catch {}
+    }
+    return {
+      width: Math.round(window.innerWidth * 0.8),
+      height: Math.round(window.innerHeight * 0.8),
+    };
+  });
+  // Collapse state for right panel
+  const [rightCollapsed, setRightCollapsed] = useState(false);
+  // Refs for popup and resizing
+  const popupRef = React.useRef();
+  const resizingRef = React.useRef(false);
+
+  // Check if running in Electron and set optimal default strategy
+  useEffect(() => {
+    const checkElectron = () => {
+      const userAgent = navigator.userAgent.toLowerCase();
+      if (userAgent.indexOf("electron") > -1) {
+        setIsElectron(true);
+        setUseWebview(true); // Auto-enable webview for Electron
+        setLoadingStrategy("webview"); // Chromium first in Electron
+      } else {
+        // If not in Electron, start with proxy strategy
+        setLoadingStrategy("proxy");
+      }
+    };
+    checkElectron();
+  }, []);
 
   // Handle "Escape" key to close popup and disable background scrolling
   useEffect(() => {
     const handleKeyDown = (e) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === "Escape") onClose();
     };
-
-    document.body.style.overflow = 'hidden';
-    window.addEventListener('keydown', handleKeyDown);
-
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", handleKeyDown);
     return () => {
-      document.body.style.overflow = 'auto';
-      window.removeEventListener('keydown', handleKeyDown);
+      document.body.style.overflow = "auto";
+      window.removeEventListener("keydown", handleKeyDown);
     };
   }, [onClose]);
 
+  // Save popup size to localStorage when changed
+  useEffect(() => {
+    localStorage.setItem("popupSize", JSON.stringify(popupSize));
+  }, [popupSize]);
+
   // Fetch Instagram embed iframe (alternative to oEmbed API)
   useEffect(() => {
-    if (cardData?.url?.includes('instagram.com')) {
+    if (cardData?.url?.includes("instagram.com")) {
       const instagramUrl = cardData.url;
       const postId = extractInstagramPostId(instagramUrl);
       if (postId) {
@@ -63,19 +138,20 @@ export default function Popup({ cardData, onClose, isDarkTheme }) {
 
   // Handle adding new tags
   const handleTagAdd = (e) => {
-    if (e.key === 'Enter' && e.target.value.trim()) {
+    if (e.key === "Enter" && e.target.value.trim()) {
       const newTag = e.target.value.trim();
-      if (!tags.includes(newTag)) { // Prevent duplicate tags
+      if (!tags.includes(newTag)) {
+        // Prevent duplicate tags
         setTags([...tags, newTag]);
       }
-      e.target.value = '';
+      e.target.value = "";
     }
   };
 
   // Truncate text to a specified limit
   const truncateText = (text, limit) => {
     if (text?.length <= limit) return text;
-    return text?.substring(0, limit) + '...';
+    return text?.substring(0, limit) + "...";
   };
 
   // Add helper function to check text selection
@@ -83,9 +159,31 @@ export default function Popup({ cardData, onClose, isDarkTheme }) {
     return window.getSelection().toString().length > 0;
   };
 
-  // Render content based on URL type
+  // Render Electron webview (Chromium instance) - Now the primary loading method
+  const renderWebview = () => {
+    return (
+      <div className="webview-container">
+        <webview
+          src={cardData.url || cardData.original_url}
+          style={{
+            width: "100%",
+            height: "100%",
+            border: "none",
+          }}
+          useragent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+          allowpopups="true"
+          webSecurity="false"
+          nodeIntegration="false"
+          contextIsolation="true"
+          preload=""
+        />
+      </div>
+    );
+  };
+
+  // Render content based on URL type with new priority: Webview → Proxy → Direct Iframe
   const renderContent = () => {
-    if (cardData?.url?.includes('instagram.com')) {
+    if (cardData?.url?.includes("instagram.com")) {
       return (
         <div className="fallback-content instagram-content">
           {instagramEmbedHTML ? (
@@ -101,7 +199,7 @@ export default function Popup({ cardData, onClose, isDarkTheme }) {
             />
           ) : (
             <div className="instagram-thumbnail-wrapper">
-              <img 
+              <img
                 src={imageUrl || "/assets/image-placeholder.png"}
                 alt={cardData.Title}
                 className="instagram-image"
@@ -112,10 +210,12 @@ export default function Popup({ cardData, onClose, isDarkTheme }) {
       );
     }
 
-    if (cardData?.url?.includes('youtube')) {
+    if (cardData?.url?.includes("youtube")) {
       return (
         <iframe
-          src={`https://www.youtube.com/embed/${extractYouTubeId(cardData.url)}`}
+          src={`https://www.youtube.com/embed/${extractYouTubeId(
+            cardData.url
+          )}`}
           width="1280"
           height="720"
           frameBorder="0"
@@ -126,37 +226,75 @@ export default function Popup({ cardData, onClose, isDarkTheme }) {
       );
     }
 
-    if (!iframeError) {
-      const iframeSrc = getIframeSrc(cardData.url);
-      if (!iframeSrc) {
-        setIframeError(true);
-        return null;
-      }
+    // NEW PRIORITY ORDER: Webview → Proxy → Direct Iframe
 
+    // 1. FIRST CHOICE: Chromium Webview (if in Electron)
+    if (isElectron && useWebview && loadingStrategy === "webview") {
+      return renderWebview();
+    }
+
+    // 2. SECOND CHOICE: Django Proxy (if webview fails or not in Electron)
+    if (
+      loadingStrategy === "proxy" ||
+      (isElectron && loadingStrategy === "proxy")
+    ) {
+      let iframeSrc = getIframeSrc(cardData.url);
+      // Force proxy for better compatibility
+      if (!cardData.url?.includes("youtube")) {
+        iframeSrc = `http://localhost:8000/api/proxy-webpage/?url=${encodeURIComponent(
+          cardData.url
+        )}`;
+      }
       return (
-        <iframe
-          src={iframeSrc}
-          width="1280"
-          height="720"
-          title="Preview"
-          sandbox="allow-same-origin allow-scripts allow-popups allow-forms"
-          referrerPolicy="origin"
-          onError={() => setIframeError(true)}
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-        />
+        <div className="iframe-container">
+          <iframe
+            src={iframeSrc}
+            width="100%"
+            height="100%"
+            title="Preview"
+            sandbox="allow-same-origin allow-scripts allow-popups allow-forms allow-top-navigation"
+            referrerPolicy="origin"
+            onError={() => {
+              // If proxy fails, try direct iframe as final fallback
+              setLoadingStrategy("direct");
+              setIframeError(false);
+            }}
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+          />
+        </div>
       );
     }
 
+    // 3. FINAL FALLBACK: Direct Iframe
+    if (!iframeError && loadingStrategy === "direct") {
+      const iframeSrc = getIframeSrc(cardData.url);
+      return (
+        <div className="iframe-container">
+          <iframe
+            src={iframeSrc}
+            width="100%"
+            height="100%"
+            title="Preview"
+            sandbox="allow-same-origin allow-scripts allow-popups allow-forms allow-top-navigation"
+            referrerPolicy="origin"
+            onError={() => setIframeError(true)}
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+          />
+        </div>
+      );
+    }
+
+    // Fallback content when everything fails
     return (
       <div className="fallback-content">
-        <img 
+        <img
           src={imageUrl || "/assets/image-placeholder.png"}
           alt={cardData.Title}
           className="fallback-image"
         />
-        <a 
-          href={cardData.original_url} 
-          target="_blank" 
+        <a
+          href={cardData.original_url}
+          target="_blank"
           rel="noopener noreferrer"
           className="visit-button"
         >
@@ -166,67 +304,104 @@ export default function Popup({ cardData, onClose, isDarkTheme }) {
     );
   };
 
+  // --- All hooks must be at the top level, so move useEffect hooks above this conditional ---
   // Conditional rendering for Note type
-  if (cardData.video_type === 'note') {
-    return (
-      <div className={`popup-overlay ${isDarkTheme ? 'dark-theme' : 'light-theme'}`} onClick={onClose}>
-        <div className={`popup-content note-popup ${isDarkTheme ? 'dark-theme' : 'light-theme'}`} onClick={(e) => e.stopPropagation()}>
-          <div className="popup-right note-popup-right"> 
-            {/* Use popup-right styling but allow it to take full width */}
-            <h2 
-              className={`truncated-title ${showFullTitle ? 'full-title' : ''}`} 
-              onClick={(e) => { if (!hasSelectedText()) { setShowFullTitle(!showFullTitle); } }}
+  let notePopup = null;
+  if (cardData.video_type === "note") {
+    notePopup = (
+      <div
+        className={`popup-overlay ${isDarkTheme ? "dark-theme" : "light-theme"}`}
+        onClick={onClose}
+      >
+        <div
+          className={`popup-content note-popup ${isDarkTheme ? "dark-theme" : "light-theme"}`}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Title Bar */}
+          <div
+            className="note-popup-titlebar"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              padding: "24px 36px 0 36px",
+              borderBottom: "1.5px solid rgba(174,0,255,0.10)"
+            }}
+          >
+            <h2
+              className={`truncated-title ${showFullTitle ? "full-title" : ""}`}
+              onClick={(e) => {
+                if (!hasSelectedText()) setShowFullTitle(!showFullTitle);
+              }}
               title={cardData.Title}
             >
-              {showFullTitle ? cardData.Title : truncateText(cardData.Title, 100)}
+              {showFullTitle
+                ? cardData.Title
+                : truncateText(cardData.Title, 100)}
             </h2>
-            
-            <div className="section-label">Note Content:</div>
-            <textarea
-              className="note-content-area" // Use a specific class for notes
-              placeholder="Add your notes here..."
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              style={{ color: isDarkTheme ? 'white' : 'black' }}
-            />
-
-            <div className="section-label">Tags:</div>
-            <div
-              className="tags"
-              onClick={(e) => { if (!hasSelectedText()) { setShowFullTags(!showFullTags); } }}
-            >
-              {showFullTags ? tags.map((tag, index) => (
-                <span key={index} className="tag">{tag}</span>
-              )) : tags.slice(0, 15).map((tag, index) => (
-                <span key={index} className="tag">{tag}</span>
-              ))}
-              <input
-                type="text"
-                placeholder="Add a tag..."
-                onKeyPress={handleTagAdd}
-              />
-            </div>
-
             <div className="popup-buttons">
-              <button title="Delete" style={{ backgroundImage: 'url("/assets/delete.png")', backgroundSize: '20px 20px', backgroundRepeat: 'no-repeat', backgroundPosition: 'center' }}/>
-              <button title="Share" style={{ backgroundImage: 'url("/assets/share.png")', backgroundSize: '20px 20px', backgroundRepeat: 'no-repeat', backgroundPosition: 'center' }}/>
+              <button
+                title="Delete"
+                style={{
+                  backgroundImage: 'url("/assets/delete.png")',
+                  backgroundSize: "20px 20px",
+                  backgroundRepeat: "no-repeat",
+                  backgroundPosition: "center",
+                  width: 36,
+                  height: 36,
+                  border: "none",
+                  borderRadius: 8,
+                  backgroundColor: "transparent",
+                  cursor: "pointer",
+                }}
+                // TODO: Implement delete logic
+                onClick={() => alert("Delete not implemented yet")}
+              />
+              <button
+                title="Share"
+                style={{
+                  backgroundImage: 'url("/assets/share.png")',
+                  backgroundSize: "20px 20px",
+                  backgroundRepeat: "no-repeat",
+                  backgroundPosition: "center",
+                  width: 36,
+                  height: 36,
+                  border: "none",
+                  borderRadius: 8,
+                  backgroundColor: "transparent",
+                  cursor: "pointer",
+                }}
+                // TODO: Implement share logic
+                onClick={() => alert("Share not implemented yet")}
+              />
               <button
                 title="Save"
-                style={{ backgroundImage: 'url("/assets/save.png")', backgroundSize: '20px 20px', backgroundRepeat: 'no-repeat', backgroundPosition: 'center' }}
+                style={{
+                  backgroundImage: 'url("/assets/save.png")',
+                  backgroundSize: "20px 20px",
+                  backgroundRepeat: "no-repeat",
+                  backgroundPosition: "center",
+                  width: 36,
+                  height: 36,
+                  border: "none",
+                  borderRadius: 8,
+                  backgroundColor: noteSaving ? "#ccc" : "#AE00FF",
+                  cursor: noteSaving ? "not-allowed" : "pointer",
+                }}
                 disabled={noteSaving}
                 onClick={async () => {
-                  if (!notes.trim()) return;
+                  if (!noteContent.trim()) return;
                   setNoteSaving(true);
                   try {
                     const { error } = await supabase
-                      .from('content')
-                      .update({ user_notes: notes })
-                      .eq('id', cardData.id);
+                      .from("content")
+                      .update({ user_notes: noteContent })
+                      .eq("id", cardData.id);
                     if (error) throw error;
                     onClose();
-                    window.location.reload(); // Quick refresh for now
+                    window.location.reload();
                   } catch (err) {
-                    alert(err.message || 'Failed to save note');
+                    alert(err.message || "Failed to save note");
                   } finally {
                     setNoteSaving(false);
                   }
@@ -234,106 +409,305 @@ export default function Popup({ cardData, onClose, isDarkTheme }) {
               />
             </div>
           </div>
+          {/* Tags */}
+          <div style={{ padding: "18px 36px 0 36px" }}>
+            <div className="section-label">
+              Tags:
+            </div>
+          <div
+            className="tags"
+            onClick={(e) => {
+              if (!hasSelectedText()) setShowFullTags(!showFullTags);
+            }}
+          >
+              {showFullTags
+                ? tags.map((tag, index) => (
+                    <span key={index} className="tag">
+                      {tag}
+                    </span>
+                  ))
+                : tags.slice(0, 15).map((tag, index) => (
+                    <span key={index} className="tag">
+                      {tag}
+                    </span>
+                  ))}
+              <input
+                type="text"
+                placeholder="Add a tag..."
+                onKeyPress={handleTagAdd}
+              />
+            </div>
+          </div>
+          {/* Markdown Editor */}
+          <div
+            className="note-editor-root"
+            style={{
+              flex: 1,
+              minHeight: 0,
+              minWidth: 0,
+              display: "flex",
+              flexDirection: "column",
+              margin: "18px 36px 36px 36px",
+              overflow: "hidden",
+              position: "relative"
+            }}
+          >
+            <NoteEditor
+              value={noteContent}
+              onChange={setNoteContent}
+              isDarkTheme={isDarkTheme}
+              isFullscreen={editorFullscreen}
+              onToggleFullscreen={setEditorFullscreen}
+            />
+          </div>
         </div>
       </div>
     );
   }
 
   // Original return statement for non-note types
-  return (
-    <div className={`popup-overlay ${isDarkTheme ? 'dark-theme' : 'light-theme'}`} onClick={onClose}>
-      <div className={`popup-content ${isDarkTheme ? 'dark-theme' : 'light-theme'}`} onClick={(e) => e.stopPropagation()}>
-        <div className="popup-left">
+  // Mouse events for resize tracking (always at top level)
+  useEffect(() => {
+    const handleMouseDown = (e) => {
+      if (popupRef.current && e.target === popupRef.current) {
+        // Check if mouse is near bottom-right corner (resize handle area)
+        const rect = popupRef.current.getBoundingClientRect();
+        if (
+          e.clientX >= rect.right - 24 &&
+          e.clientX <= rect.right &&
+          e.clientY >= rect.bottom - 24 &&
+          e.clientY <= rect.bottom
+        ) {
+          resizingRef.current = true;
+        }
+      }
+    };
+    const handleMouseUp = () => {
+      resizingRef.current = false;
+    };
+    document.addEventListener("mousedown", handleMouseDown);
+    document.addEventListener("mouseup", handleMouseUp);
+    return () => {
+      document.removeEventListener("mousedown", handleMouseDown);
+      document.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, []);
+
+  // Handle resize and persist size
+  const handleResize = (e) => {
+    if (!popupRef.current) return;
+    const rect = popupRef.current.getBoundingClientRect();
+    // Clamp to 95vw/vh
+    const maxWidth = Math.round(window.innerWidth * 0.95);
+    const maxHeight = Math.round(window.innerHeight * 0.95);
+    let width = Math.min(rect.width, maxWidth);
+    let height = Math.min(rect.height, maxHeight);
+    setPopupSize({ width, height });
+  };
+
+  // Overlay click handler: only close if not resizing
+  const handleOverlayClick = (e) => {
+    if (resizingRef.current) return;
+    if (e.target === e.currentTarget) onClose();
+  };
+
+  // Render main popup (non-note type)
+  const mainPopup = (
+    <div
+      className={`popup-overlay ${isDarkTheme ? "dark-theme" : "light-theme"}`}
+      onClick={handleOverlayClick}
+      style={{
+        position: "fixed",
+        top: 0,
+        left: 0,
+        width: "100vw",
+        height: "100vh",
+        zIndex: 9999,
+        background: "rgba(0,0,0,0.6)",
+      }}
+    >
+      <div
+        ref={popupRef}
+        className={`popup-content ${
+          isDarkTheme ? "dark-theme" : "light-theme"
+        }`}
+        onClick={(e) => e.stopPropagation()}
+        onMouseUp={handleResize}
+        style={{
+          resize: "both",
+          overflow: "auto",
+          maxWidth: "95vw",
+          maxHeight: "95vh",
+          minWidth: 400,
+          minHeight: 300,
+          width: popupSize.width,
+          height: popupSize.height,
+          display: "flex",
+          flexDirection: "row",
+          borderRadius: 16,
+          boxShadow: "0 8px 32px rgba(0,0,0,0.25)",
+          border: "none",
+          position: "relative",
+        }}
+      >
+        <div
+          className="popup-left"
+          style={{
+            flex: rightCollapsed ? 1 : 1,
+            minWidth: 0,
+            minHeight: 0,
+            display: "flex",
+            flexDirection: "column",
+          }}
+        >
           {renderContent()}
-          {/* Ensure original URL is used for the visit button */}
           <a
-            href={cardData.original_url || cardData.url} 
+            href={cardData.original_url || cardData.url}
             target="_blank"
             rel="noopener noreferrer"
             className="visit-button"
+            style={{ marginTop: 12, alignSelf: "flex-end" }}
           >
             Visit Original
           </a>
         </div>
-        <div className="popup-right">
-          <h2 
-            className={`truncated-title ${showFullTitle ? 'full-title' : ''}`} 
-            onClick={(e) => {
-              if (!hasSelectedText()) {
-                setShowFullTitle(!showFullTitle);
-              }
-            }}
-            title={cardData.Title}
-          >
-            {showFullTitle ? cardData.Title : truncateText(cardData.Title, 100)}
-          </h2>
-          <div className="section-label">Summary:</div>
-          <p 
-            className="summary-text"
-            onClick={(e) => {
-              if (!hasSelectedText()) {
-                setShowFullSummary(!showFullSummary);
-              }
-            }}
-          >
-            {showFullSummary ? cardData.Summary : truncateText(cardData.Summary, 700)}
-          </p>
-          <div className="section-label">Tags:</div>
-          <div
-            className="tags"
-            onClick={(e) => {
-              if (!hasSelectedText()) {
-                setShowFullTags(!showFullTags);
-              }
-            }}
-          >
-            {showFullTags ? tags.map((tag, index) => (
-              <span key={index} className="tag">{tag}</span>
-            )) : tags.slice(0, 15).map((tag, index) => (
-              <span key={index} className="tag">{tag}</span>
-            ))}
-            <input
-              type="text"
-              placeholder="Add a tag..."
-              onKeyPress={handleTagAdd}
-            />
-          </div>
-          <textarea
-            placeholder="Add your notes here..."
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            style={{ color: isDarkTheme ? 'white' : 'black' }}
-          />
-          <div className="popup-buttons">
-            <button title="Delete" style={{ backgroundImage: 'url("/assets/delete.png")', backgroundSize: '20px 20px', backgroundRepeat: 'no-repeat', backgroundPosition: 'center' }}/>
-            <button title="Share" style={{ backgroundImage: 'url("/assets/share.png")', backgroundSize: '20px 20px', backgroundRepeat: 'no-repeat', backgroundPosition: 'center' }}/>
-            <button
-              title="Save"
-              style={{ backgroundImage: 'url("/assets/save.png")', backgroundSize: '20px 20px', backgroundRepeat: 'no-repeat', backgroundPosition: 'center' }}
-              disabled={noteSaving}
-              onClick={async () => {
-                if (!notes.trim()) return;
-                setNoteSaving(true);
-                try {
-                  const { error } = await supabase
-                    .from('content')
-                    .update({ user_notes: notes })
-                    .eq('id', cardData.id);
-                  if (error) throw error;
-                  onClose();
-                  window.location.reload(); // Quick refresh for now
-                } catch (err) {
-                  alert(err.message || 'Failed to save note');
-                } finally {
-                  setNoteSaving(false);
+        {/* Collapse/Expand Button */}
+        <button
+          className="collapse-toggle-btn"
+          style={{
+            position: "absolute",
+            top: 16,
+            right: rightCollapsed ? 0 : "35%",
+            zIndex: 10,
+            background: "rgba(118, 0, 173, 1)",
+            color: "white",
+            border: "none",
+            borderRadius: "8px 0 0 8px",
+            padding: "6px 12px",
+            cursor: "pointer",
+            fontWeight: 600,
+            fontSize: 16,
+            transition: "right 0.2s",
+          }}
+          onClick={() => setRightCollapsed((v) => !v)}
+          title={rightCollapsed ? "Expand details" : "Collapse details"}
+        >
+          {rightCollapsed ? "⮜" : "⮞"}
+        </button>
+        {!rightCollapsed && (
+          <div className="popup-right">
+            {/* ...existing code... */}
+            <h2
+              className={`truncated-title ${showFullTitle ? "full-title" : ""}`}
+              onClick={(e) => {
+                if (!hasSelectedText()) {
+                  setShowFullTitle(!showFullTitle);
                 }
               }}
-            />
+              title={cardData.Title}
+            >
+              {showFullTitle
+                ? cardData.Title
+                : truncateText(cardData.Title, 100)}
+            </h2>
+            <div className="section-label">Summary:</div>
+            <p
+              className="summary-text"
+              onClick={(e) => {
+                if (!hasSelectedText()) {
+                  setShowFullSummary(!showFullSummary);
+                }
+              }}
+            >
+              {showFullSummary
+                ? cardData.Summary
+                : truncateText(cardData.Summary, 700)}
+            </p>
+            <div className="section-label">Tags:</div>
+            <div
+              className="tags"
+              onClick={(e) => {
+                if (!hasSelectedText()) {
+                  setShowFullTags(!showFullTags);
+                }
+              }}
+            >
+              {showFullTags
+                ? tags.map((tag, index) => (
+                    <span key={index} className="tag">
+                      {tag}
+                    </span>
+                  ))
+                : tags.slice(0, 15).map((tag, index) => (
+                    <span key={index} className="tag">
+                      {tag}
+                    </span>
+                  ))}
+              <input
+                type="text"
+                placeholder="Add a tag..."
+                onKeyPress={handleTagAdd}
+              />
+            </div>
+            {/* Removed old textarea for notes. Now using markdown editor. */}
+            <div className="popup-buttons">
+              <button
+                title="Delete"
+                style={{
+                  backgroundImage: 'url("/assets/delete.png")',
+                  backgroundSize: "20px 20px",
+                  backgroundRepeat: "no-repeat",
+                  backgroundPosition: "center",
+                }}
+              />
+              <button
+                title="Share"
+                style={{
+                  backgroundImage: 'url("/assets/share.png")',
+                  backgroundSize: "20px 20px",
+                  backgroundRepeat: "no-repeat",
+                  backgroundPosition: "center",
+                }}
+              />
+              <button
+                title="Save"
+                style={{
+                  backgroundImage: 'url("/assets/save.png")',
+                  backgroundSize: "20px 20px",
+                  backgroundRepeat: "no-repeat",
+                  backgroundPosition: "center",
+                }}
+                disabled={noteSaving}
+                onClick={async () => {
+                  if (!noteContent.trim()) return;
+                  setNoteSaving(true);
+                  try {
+                    const { error } = await supabase
+                      .from("content")
+                      .update({ user_notes: noteContent })
+                      .eq("id", cardData.id);
+                    if (error) throw error;
+                    onClose();
+                    window.location.reload(); // Quick refresh for now
+                  } catch (err) {
+                    alert(err.message || "Failed to save note");
+                  } finally {
+                    setNoteSaving(false);
+                  }
+                }}
+              />
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );
+
+  if (cardData.video_type === "note") {
+    return notePopup;
+  }
+
+  return mainPopup;
 }
 
 // Extract Instagram post ID from URL
@@ -344,7 +718,8 @@ function extractInstagramPostId(url) {
 
 // Extract YouTube video ID from URL
 function extractYouTubeId(url) {
-  const regExp = /(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/))([\w-]{11})/;
+  const regExp =
+    /(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/))([\w-]{11})/;
   const match = url?.match(regExp);
   return match ? match[1] : null;
 }

@@ -23,22 +23,15 @@ function Card({ thumbnailUrl, url, title, type, dateAdded, content, onClick }) {
       return;
     }
     
+    // Use proxy for non-YouTube thumbnails to bypass CORS
     if (cardType !== 'youtube' && cardType !== 'note') {
-      // Use proxy for non-YouTube thumbnails
-      const proxyUrl = `https://proxy.corsfix.com/?${thumbnailUrl}`;
-      fetch(proxyUrl)
-        .then(response => response.blob())
-        .then(imageBlob => {
-          setImageUrl(URL.createObjectURL(imageBlob));
-          setIsLoading(false);
-        })
-        .catch(() => {
-          setImageUrl("/assets/image-placeholder.png");
-          setIsLoading(false);
-        });
+      const proxyUrl = `http://localhost:8000/api/proxy-image/?url=${encodeURIComponent(thumbnailUrl)}`;
+      setImageUrl(proxyUrl);
     } else {
-      setIsLoading(false);
+      // YouTube thumbnails work directly, no proxy needed
+      setImageUrl(thumbnailUrl);
     }
+    setIsLoading(false);
   }, [thumbnailUrl, cardType]);
 
   const formatDate = (dateString) => {

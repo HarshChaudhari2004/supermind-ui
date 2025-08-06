@@ -4,6 +4,7 @@ import Masonry from 'react-masonry-css';
 import "./Home.css";
 import Card from "../components/Card";
 import Popup from "../components/Popup";
+import Settings from "../components/Settings";
 import Auth from "../components/Auth";
 import { supabase } from '../lib/supabase';
 import { Analytics } from "@vercel/analytics/react";
@@ -30,6 +31,7 @@ function Home() {
   const [showNoteModal, setShowNoteModal] = useState(false);
   const [newNoteContent, setNewNoteContent] = useState("");
   const [noteSaving, setNoteSaving] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
 
   const performSearch = useCallback(async (query, pageNumber = 0) => {
     const searchId = Date.now();
@@ -96,17 +98,23 @@ function Home() {
         if (performSearch.lastSearchId !== searchId) return;
 
         if (pageNumber === 0) {
-          setCardsData(fallbackData || []);
+          // Sort fallback data by date_added descending to ensure newest items first
+          const sortedData = (fallbackData || []).sort((a, b) => new Date(b.date_added) - new Date(a.date_added));
+          setCardsData(sortedData);
         } else {
-          setCardsData(prev => [...prev, ...(fallbackData || [])]);
+          const sortedData = (fallbackData || []).sort((a, b) => new Date(b.date_added) - new Date(a.date_added));
+          setCardsData(prev => [...prev, ...sortedData]);
         }
 
         setHasMore(fallbackData.length === PAGE_SIZE);
       } else {
         if (pageNumber === 0) {
-          setCardsData(data || []);
+          // Sort data by date_added descending to ensure newest items first
+          const sortedData = (data || []).sort((a, b) => new Date(b.date_added) - new Date(a.date_added));
+          setCardsData(sortedData);
         } else {
-          setCardsData(prev => [...prev, ...(data || [])]);
+          const sortedData = (data || []).sort((a, b) => new Date(b.date_added) - new Date(a.date_added));
+          setCardsData(prev => [...prev, ...sortedData]);
         }
         setHasMore(data.length === PAGE_SIZE);
       }
@@ -165,6 +173,9 @@ function Home() {
       setSession(session);
       if (!session) {
         setCardsData([]); // Clear data on logout
+        setShowSettings(false); // Close settings modal on logout
+        setSelectedCard(null); // Close any open popup
+        setShowNoteModal(false); // Close note modal
       }
     });
 
@@ -184,10 +195,32 @@ function Home() {
 
   const handleSignOut = async () => {
     try {
+      setShowSettings(false); // Close settings modal before signing out
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
     } catch (error) {
       console.error('Error signing out:', error.message);
+    }
+  };
+
+  const handleClearCache = async () => {
+    try {
+      // Clear React state
+      setCardsData([]);
+      setSelectedCard(null);
+      setShowNoteModal(false);
+      setSearchQuery('');
+      setSearchTerm('');
+      setPage(0);
+      setHasMore(true);
+
+      // Force refresh of all data
+      await performSearch('', 0);
+      
+      return Promise.resolve();
+    } catch (error) {
+      console.error('Error clearing app cache:', error);
+      throw error;
     }
   };
 
@@ -251,9 +284,7 @@ function Home() {
             />
           </div>
           <div className="nav-buttons">
-            <button onClick={handleSignOut} className="sign-out-button">
-              <img src="/assets/logout.png" alt="Sign Out" />
-            </button>
+            {/* Logout button moved to settings page */}
           </div>
         </div>
       </header>
@@ -294,7 +325,7 @@ function Home() {
               </button>
             </div>
           )}
-          <button id="settings-button">
+          <button id="settings-button" onClick={() => setShowSettings(true)}>
             <img src="/assets/settings.png" alt="Settings" />
           </button>
         </div>
@@ -385,7 +416,20 @@ function Home() {
                       
                       setNewNoteContent("");
                       setShowNoteModal(false);
-                      performSearch(searchQuery, 0); // Refresh cards
+                      // Add the new note to the beginning of cards data instead of full refresh
+                      const newNote = {
+                        id: noteId,
+                        user_id: user.id,
+                        title: newNoteContent.split(/[.!?\n]/)[0].slice(0, 100) || 'Quick Note',
+                        video_type: 'note',
+                        tags: 'quick_note',
+                        user_notes: newNoteContent,
+                        date_added: new Date().toISOString(),
+                        thumbnail_url: null,
+                        original_url: null,
+                        channel_name: 'Quick Notes'
+                      };
+                      setCardsData(prev => [newNote, ...prev]);
                       alert('Note saved successfully!');
                     } catch (err) {
                       alert(err.message || 'Failed to save note');
@@ -417,6 +461,16 @@ function Home() {
           isDarkTheme={isDarkTheme}
         />
       )}
+
+      {/* Settings Modal */}
+      <Settings
+        isOpen={showSettings}
+        onClose={() => setShowSettings(false)}
+        onSignOut={handleSignOut}
+        onClearCache={handleClearCache}
+        isDarkTheme={isDarkTheme}
+      />
+
       <Analytics/>
     </div>
   );
