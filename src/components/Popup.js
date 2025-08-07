@@ -46,6 +46,13 @@ const getIframeSrc = (url) => {
 };
 
 export default function Popup({ cardData, onClose, isDarkTheme }) {
+  // Delete confirmation modal state
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  // For note type popup
+  const [showDeleteNoteConfirm, setShowDeleteNoteConfirm] = useState(false);
+  const [deletingNote, setDeletingNote] = useState(false);
   // State variables
   // Markdown note state
   const [noteContent, setNoteContent] = useState(cardData?.user_notes || "");
@@ -344,45 +351,44 @@ export default function Popup({ cardData, onClose, isDarkTheme }) {
                 title="Delete"
                 style={{
                   backgroundImage: 'url("/assets/delete.png")',
-                  backgroundSize: "20px 20px",
+                  backgroundSize: "36px 36px",
                   backgroundRepeat: "no-repeat",
                   backgroundPosition: "center",
-                  width: 36,
-                  height: 36,
+                  width: 64,
+                  height: 64,
                   border: "none",
                   borderRadius: 8,
                   backgroundColor: "transparent",
                   cursor: "pointer",
                 }}
-                // TODO: Implement delete logic
-                onClick={() => alert("Delete not implemented yet")}
+                onClick={() => setShowDeleteNoteConfirm(true)}
+                disabled={deletingNote}
               />
               <button
                 title="Share"
                 style={{
                   backgroundImage: 'url("/assets/share.png")',
-                  backgroundSize: "20px 20px",
+                  backgroundSize: "36px 36px",
                   backgroundRepeat: "no-repeat",
                   backgroundPosition: "center",
-                  width: 36,
-                  height: 36,
+                  width: 64,
+                  height: 64,
                   border: "none",
                   borderRadius: 8,
                   backgroundColor: "transparent",
                   cursor: "pointer",
                 }}
-                // TODO: Implement share logic
                 onClick={() => alert("Share not implemented yet")}
               />
               <button
                 title="Save"
                 style={{
                   backgroundImage: 'url("/assets/save.png")',
-                  backgroundSize: "20px 20px",
+                  backgroundSize: "36px 36px",
                   backgroundRepeat: "no-repeat",
                   backgroundPosition: "center",
-                  width: 36,
-                  height: 36,
+                  width: 64,
+                  height: 64,
                   border: "none",
                   borderRadius: 8,
                   backgroundColor: noteSaving ? "#ccc" : "#AE00FF",
@@ -408,6 +414,43 @@ export default function Popup({ cardData, onClose, isDarkTheme }) {
                 }}
               />
             </div>
+            {/* Delete confirmation modal for note */}
+            {showDeleteNoteConfirm && (
+              <div className="popup-delete-modal-overlay" onClick={() => !deletingNote && setShowDeleteNoteConfirm(false)}>
+                <div className="popup-delete-modal" onClick={e => e.stopPropagation()}>
+                  <h2>Delete this note?</h2>
+                  <p>Are you sure you want to delete this note? This action cannot be undone.</p>
+                  <div className="popup-delete-modal-buttons">
+                    <button
+                      className="delete-btn"
+                      disabled={deletingNote}
+                      onClick={async () => {
+                        setDeletingNote(true);
+                        try {
+                          const { error } = await supabase
+                            .from("content")
+                            .delete()
+                            .eq("id", cardData.id);
+                          if (error) throw error;
+                          setShowDeleteNoteConfirm(false);
+                          onClose();
+                          window.location.reload();
+                        } catch (err) {
+                          alert(err.message || "Failed to delete note");
+                        } finally {
+                          setDeletingNote(false);
+                        }
+                      }}
+                    >Delete</button>
+                    <button
+                      className="cancel-btn"
+                      disabled={deletingNote}
+                      onClick={() => setShowDeleteNoteConfirm(false)}
+                    >Cancel</button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
           {/* Tags */}
           <div style={{ padding: "18px 36px 0 36px" }}>
@@ -513,194 +556,284 @@ export default function Popup({ cardData, onClose, isDarkTheme }) {
 
   // Render main popup (non-note type)
   const mainPopup = (
-    <div
-      className={`popup-overlay ${isDarkTheme ? "dark-theme" : "light-theme"}`}
-      onClick={handleOverlayClick}
-      style={{
-        position: "fixed",
-        top: 0,
-        left: 0,
-        width: "100vw",
-        height: "100vh",
-        zIndex: 9999,
-        background: "rgba(0,0,0,0.6)",
-      }}
-    >
+    <>
       <div
-        ref={popupRef}
-        className={`popup-content ${
-          isDarkTheme ? "dark-theme" : "light-theme"
-        }`}
-        onClick={(e) => e.stopPropagation()}
-        onMouseUp={handleResize}
+        className={`popup-overlay ${isDarkTheme ? "dark-theme" : "light-theme"}`}
+        onClick={handleOverlayClick}
         style={{
-          resize: "both",
-          overflow: "auto",
-          maxWidth: "95vw",
-          maxHeight: "95vh",
-          minWidth: 400,
-          minHeight: 300,
-          width: popupSize.width,
-          height: popupSize.height,
-          display: "flex",
-          flexDirection: "row",
-          borderRadius: 16,
-          boxShadow: "0 8px 32px rgba(0,0,0,0.25)",
-          border: "none",
-          position: "relative",
+          position: "fixed",
+          top: 0,
+          left: 0,
+          width: "100vw",
+          height: "100vh",
+          zIndex: 9999,
+          background: "rgba(0,0,0,0.6)",
         }}
       >
         <div
-          className="popup-left"
+          ref={popupRef}
+          className={`popup-content ${
+            isDarkTheme ? "dark-theme" : "light-theme"
+          }`}
+          onClick={(e) => e.stopPropagation()}
+          onMouseUp={handleResize}
           style={{
-            flex: rightCollapsed ? 1 : 1,
-            minWidth: 0,
-            minHeight: 0,
+            resize: "both",
+            overflow: "auto",
+            maxWidth: "95vw",
+            maxHeight: "95vh",
+            minWidth: 400,
+            minHeight: 300,
+            width: popupSize.width,
+            height: popupSize.height,
             display: "flex",
-            flexDirection: "column",
-          }}
-        >
-          {renderContent()}
-          <a
-            href={cardData.original_url || cardData.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="visit-button"
-            style={{ marginTop: 12, alignSelf: "flex-end" }}
-          >
-            Visit Original
-          </a>
-        </div>
-        {/* Collapse/Expand Button */}
-        <button
-          className="collapse-toggle-btn"
-          style={{
-            position: "absolute",
-            top: 16,
-            right: rightCollapsed ? 0 : "35%",
-            zIndex: 10,
-            background: "rgba(118, 0, 173, 1)",
-            color: "white",
+            flexDirection: "row",
+            borderRadius: 16,
+            boxShadow: "0 8px 32px rgba(0,0,0,0.25)",
             border: "none",
-            borderRadius: "8px 0 0 8px",
-            padding: "6px 12px",
-            cursor: "pointer",
-            fontWeight: 600,
-            fontSize: 16,
-            transition: "right 0.2s",
+            position: "relative",
           }}
-          onClick={() => setRightCollapsed((v) => !v)}
-          title={rightCollapsed ? "Expand details" : "Collapse details"}
         >
-          {rightCollapsed ? "⮜" : "⮞"}
-        </button>
-        {!rightCollapsed && (
-          <div className="popup-right">
-            {/* ...existing code... */}
-            <h2
-              className={`truncated-title ${showFullTitle ? "full-title" : ""}`}
-              onClick={(e) => {
-                if (!hasSelectedText()) {
-                  setShowFullTitle(!showFullTitle);
-                }
-              }}
-              title={cardData.Title}
+          <div
+            className="popup-left"
+            style={{
+              flex: rightCollapsed ? 1 : 1,
+              minWidth: 0,
+              minHeight: 0,
+              display: "flex",
+              flexDirection: "column",
+            }}
+          >
+            {renderContent()}
+            <a
+              href={cardData.original_url || cardData.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="visit-button"
+              style={{ marginTop: 12, alignSelf: "flex-end" }}
             >
-              {showFullTitle
-                ? cardData.Title
-                : truncateText(cardData.Title, 100)}
-            </h2>
-            <div className="section-label">Summary:</div>
-            <p
-              className="summary-text"
-              onClick={(e) => {
-                if (!hasSelectedText()) {
-                  setShowFullSummary(!showFullSummary);
-                }
-              }}
-            >
-              {showFullSummary
-                ? cardData.Summary
-                : truncateText(cardData.Summary, 700)}
-            </p>
-            <div className="section-label">Tags:</div>
-            <div
-              className="tags"
-              onClick={(e) => {
-                if (!hasSelectedText()) {
-                  setShowFullTags(!showFullTags);
-                }
-              }}
-            >
-              {showFullTags
-                ? tags.map((tag, index) => (
-                    <span key={index} className="tag">
-                      {tag}
-                    </span>
-                  ))
-                : tags.slice(0, 15).map((tag, index) => (
-                    <span key={index} className="tag">
-                      {tag}
-                    </span>
-                  ))}
-              <input
-                type="text"
-                placeholder="Add a tag..."
-                onKeyPress={handleTagAdd}
-              />
+              Visit Original
+            </a>
+          </div>
+          {/* Collapse/Expand Button */}
+          <button
+            className="collapse-toggle-btn"
+            style={{
+              position: "absolute",
+              top: 16,
+              right: rightCollapsed ? 0 : "35%",
+              zIndex: 10,
+              background: "rgba(118, 0, 173, 1)",
+              color: "white",
+              border: "none",
+              borderRadius: "8px 0 0 8px",
+              padding: "6px 12px",
+              cursor: "pointer",
+              fontWeight: 600,
+              fontSize: 16,
+              transition: "right 0.2s",
+            }}
+            onClick={() => setRightCollapsed((v) => !v)}
+            title={rightCollapsed ? "Expand details" : "Collapse details"}
+          >
+            {rightCollapsed ? "⮜" : "⮞"}
+          </button>
+          {!rightCollapsed && (
+            <div className="popup-right">
+              {/* ...existing code... */}
+              <h2
+                className={`truncated-title ${showFullTitle ? "full-title" : ""}`}
+                onClick={(e) => {
+                  if (!hasSelectedText()) {
+                    setShowFullTitle(!showFullTitle);
+                  }
+                }}
+                title={cardData.Title}
+              >
+                {showFullTitle
+                  ? cardData.Title
+                  : truncateText(cardData.Title, 100)}
+              </h2>
+              <div className="section-label">Summary:</div>
+              <p
+                className="summary-text"
+                onClick={(e) => {
+                  if (!hasSelectedText()) {
+                    setShowFullSummary(!showFullSummary);
+                  }
+                }}
+              >
+                {showFullSummary
+                  ? cardData.Summary
+                  : truncateText(cardData.Summary, 700)}
+              </p>
+              <div className="section-label">Tags:</div>
+              <div
+                className="tags"
+                onClick={(e) => {
+                  if (!hasSelectedText()) {
+                    setShowFullTags(!showFullTags);
+                  }
+                }}
+              >
+                {showFullTags
+                  ? tags.map((tag, index) => (
+                      <span key={index} className="tag">
+                        {tag}
+                      </span>
+                    ))
+                  : tags.slice(0, 15).map((tag, index) => (
+                      <span key={index} className="tag">
+                        {tag}
+                      </span>
+                    ))}
+                <input
+                  type="text"
+                  placeholder="Add a tag..."
+                  onKeyPress={handleTagAdd}
+                />
+              </div>
+              {/* Removed old textarea for notes. Now using markdown editor. */}
+              <div className="popup-buttons">
+                <button
+                  title="Delete"
+                  style={{
+                    backgroundImage: 'url("/assets/delete.png")',
+                    backgroundSize: "32px 32px",
+                    backgroundRepeat: "no-repeat",
+                    backgroundPosition: "center",
+                  }}
+                  onClick={() => setShowDeleteConfirm(true)}
+                  disabled={deleting}
+                />
+                <button
+                  title="Share"
+                  style={{
+                    backgroundImage: 'url("/assets/share.png")',
+                    backgroundSize: "32px 32px",
+                    backgroundRepeat: "no-repeat",
+                    backgroundPosition: "center",
+                  }}
+                />
+                <button
+                  title="Save"
+                  style={{
+                    backgroundImage: 'url("/assets/save.png")',
+                    backgroundSize: "32px 32px",
+                    backgroundRepeat: "no-repeat",
+                    backgroundPosition: "center",
+                  }}
+                  disabled={noteSaving}
+                  onClick={async () => {
+                    if (!noteContent.trim()) return;
+                    setNoteSaving(true);
+                    try {
+                      const { error } = await supabase
+                        .from("content")
+                        .update({ user_notes: noteContent })
+                        .eq("id", cardData.id);
+                      if (error) throw error;
+                      onClose();
+                      window.location.reload(); // Quick refresh for now
+                    } catch (err) {
+                      alert(err.message || "Failed to save note");
+                    } finally {
+                      setNoteSaving(false);
+                    }
+                  }}
+                />
+              </div>
             </div>
-            {/* Removed old textarea for notes. Now using markdown editor. */}
-            <div className="popup-buttons">
+          )}
+        </div>
+      </div>
+      {/* Delete confirmation modal */}
+      {showDeleteConfirm && (
+        <div
+          className="popup-overlay"
+          style={{
+            zIndex: 10001,
+            background: "rgba(0,0,0,0.7)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+          onClick={() => !deleting && setShowDeleteConfirm(false)}
+        >
+          <div
+            className="popup-content"
+            style={{
+              maxWidth: 400,
+              height: "auto",
+              width: "90vw",
+              borderRadius: 16,
+              boxShadow: "0 8px 32px rgba(0,0,0,0.25)",
+              background: isDarkTheme ? "#1e1e1e" : "#fff",
+              color: isDarkTheme ? "#fff" : "#222",
+              padding: 32,
+              position: "relative",
+              textAlign: "center",
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            <h2 style={{marginBottom: 24}}>Delete this card?</h2>
+            <p style={{marginBottom: 32}}>Are you sure you want to delete this card? This action cannot be undone.</p>
+            <div style={{display: "flex", gap: 16, justifyContent: "center"}}>
               <button
-                title="Delete"
                 style={{
-                  backgroundImage: 'url("/assets/delete.png")',
-                  backgroundSize: "20px 20px",
-                  backgroundRepeat: "no-repeat",
-                  backgroundPosition: "center",
+                  background: "#ff4444",
+                  color: "white",
+                  fontWeight: "bold",
+                  border: "none",
+                  borderRadius: 8,
+                  padding: "12px 24px",
+                  fontSize: 18,
+                  cursor: deleting ? "not-allowed" : "pointer",
+                  opacity: deleting ? 0.7 : 1,
                 }}
-              />
-              <button
-                title="Share"
-                style={{
-                  backgroundImage: 'url("/assets/share.png")',
-                  backgroundSize: "20px 20px",
-                  backgroundRepeat: "no-repeat",
-                  backgroundPosition: "center",
-                }}
-              />
-              <button
-                title="Save"
-                style={{
-                  backgroundImage: 'url("/assets/save.png")',
-                  backgroundSize: "20px 20px",
-                  backgroundRepeat: "no-repeat",
-                  backgroundPosition: "center",
-                }}
-                disabled={noteSaving}
+                disabled={deleting}
                 onClick={async () => {
-                  if (!noteContent.trim()) return;
-                  setNoteSaving(true);
+                  setDeleting(true);
                   try {
                     const { error } = await supabase
                       .from("content")
-                      .update({ user_notes: noteContent })
+                      .delete()
                       .eq("id", cardData.id);
                     if (error) throw error;
+                    setShowDeleteConfirm(false);
                     onClose();
-                    window.location.reload(); // Quick refresh for now
+                    window.location.reload();
                   } catch (err) {
-                    alert(err.message || "Failed to save note");
+                    alert(err.message || "Failed to delete card");
                   } finally {
-                    setNoteSaving(false);
+                    setDeleting(false);
                   }
                 }}
-              />
+              >
+                Delete
+              </button>
+              <button
+                style={{
+                  background: isDarkTheme ? "#333" : "#eee",
+                  color: isDarkTheme ? "#fff" : "#222",
+                  fontWeight: "bold",
+                  border: "none",
+                  borderRadius: 8,
+                  padding: "12px 24px",
+                  fontSize: 18,
+                  cursor: deleting ? "not-allowed" : "pointer",
+                  opacity: deleting ? 0.7 : 1,
+                }}
+                disabled={deleting}
+                onClick={() => setShowDeleteConfirm(false)}
+              >
+                Cancel
+              </button>
             </div>
           </div>
-        )}
-      </div>
-    </div>
+        </div>
+      )}
+    </>
   );
 
   if (cardData.video_type === "note") {
