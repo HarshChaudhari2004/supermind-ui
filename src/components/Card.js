@@ -18,15 +18,26 @@ function Card({ thumbnailUrl, url, title, type, dateAdded, content, onClick }) {
   const cardType = getCardType(url, type);
 
   useEffect(() => {
-    if (!thumbnailUrl || thumbnailUrl.startsWith("/assets/")) {
+    if (!thumbnailUrl || thumbnailUrl.startsWith("./assets/")) {
       setIsLoading(false);
       return;
     }
-    
+
+    // Check if the image is already cached locally
+    const cachedImage = localStorage.getItem(thumbnailUrl);
+    if (cachedImage) {
+      setImageUrl(cachedImage);
+      setIsLoading(false);
+      return;
+    }
+
     // Use proxy for non-YouTube thumbnails to bypass CORS
     if (cardType !== 'youtube' && cardType !== 'note') {
       const proxyUrl = `http://localhost:8000/api/proxy-image/?url=${encodeURIComponent(thumbnailUrl)}`;
       setImageUrl(proxyUrl);
+
+      // Cache the proxy URL locally
+      localStorage.setItem(thumbnailUrl, proxyUrl);
     } else {
       // YouTube thumbnails work directly, no proxy needed
       setImageUrl(thumbnailUrl);
@@ -56,12 +67,12 @@ function Card({ thumbnailUrl, url, title, type, dateAdded, content, onClick }) {
   return (
     <div className={`card ${cardType}-card ${isLoading ? 'loading-placeholder' : ''}`} onClick={onClick}>
       <img
-        src={cardType === 'youtube' ? thumbnailUrl : (imageUrl || "/assets/image-placeholder.png")}
+        src={cardType === 'youtube' ? thumbnailUrl : (imageUrl || "./assets/image-placeholder.png")}
         alt={title || ""}
         className={`card-thumbnail ${cardType}-thumbnail`}
         onLoad={() => setIsLoading(false)}
         onError={(e) => {
-          e.target.src = "/assets/image-placeholder.png";
+          e.target.src = "./assets/image-placeholder.png";
           setIsLoading(false);
         }}
       />

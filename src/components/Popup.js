@@ -29,6 +29,7 @@ const getIframeSrc = (url) => {
     "facebook.com",
     "forbes.com",
     "pinterest.com",
+    "styles.redditmedia.com"
   ];
 
   // Check if the URL contains any blocked domains
@@ -207,7 +208,7 @@ export default function Popup({ cardData, onClose, isDarkTheme }) {
           ) : (
             <div className="instagram-thumbnail-wrapper">
               <img
-                src={imageUrl || "/assets/image-placeholder.png"}
+                src={imageUrl || "./assets/image-placeholder.png"}
                 alt={cardData.Title}
                 className="instagram-image"
               />
@@ -295,7 +296,7 @@ export default function Popup({ cardData, onClose, isDarkTheme }) {
     return (
       <div className="fallback-content">
         <img
-          src={imageUrl || "/assets/image-placeholder.png"}
+          src={imageUrl || "./assets/image-placeholder.png"}
           alt={cardData.Title}
           className="fallback-image"
         />
@@ -350,7 +351,7 @@ export default function Popup({ cardData, onClose, isDarkTheme }) {
               <button
                 title="Delete"
                 style={{
-                  backgroundImage: 'url("/assets/delete.png")',
+                  backgroundImage: 'url("./assets/trash-can-solid-full.svg")',
                   backgroundSize: "36px 36px",
                   backgroundRepeat: "no-repeat",
                   backgroundPosition: "center",
@@ -367,7 +368,7 @@ export default function Popup({ cardData, onClose, isDarkTheme }) {
               <button
                 title="Share"
                 style={{
-                  backgroundImage: 'url("/assets/share.png")',
+                  backgroundImage: 'url("./assets/share.png")',
                   backgroundSize: "36px 36px",
                   backgroundRepeat: "no-repeat",
                   backgroundPosition: "center",
@@ -383,7 +384,7 @@ export default function Popup({ cardData, onClose, isDarkTheme }) {
               <button
                 title="Save"
                 style={{
-                  backgroundImage: 'url("/assets/save.png")',
+                  backgroundImage: 'url("./assets/save.png")',
                   backgroundSize: "36px 36px",
                   backgroundRepeat: "no-repeat",
                   backgroundPosition: "center",
@@ -554,6 +555,31 @@ export default function Popup({ cardData, onClose, isDarkTheme }) {
     if (e.target === e.currentTarget) onClose();
   };
 
+  // Add SVG filter for liquid glass effect
+const LiquidGlassFilter = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" style={{ display: "none" }}>
+    <defs>
+      <filter id="glass-distortion" x="0%" y="0%" width="100%" height="100%">
+        <feTurbulence
+          type="fractalNoise"
+          baseFrequency="0.008 0.008"
+          numOctaves="2"
+          seed="92"
+          result="noise"
+        />
+        <feGaussianBlur in="noise" stdDeviation="2" result="blurred" />
+        <feDisplacementMap
+          in="SourceGraphic"
+          in2="blurred"
+          scale="77"
+          xChannelSelector="R"
+          yChannelSelector="G"
+        />
+      </filter>
+    </defs>
+  </svg>
+);
+
   // Render main popup (non-note type)
   const mainPopup = (
     <>
@@ -641,109 +667,109 @@ export default function Popup({ cardData, onClose, isDarkTheme }) {
           {!rightCollapsed && (
             <div className="popup-right">
               {/* ...existing code... */}
-              <h2
-                className={`truncated-title ${showFullTitle ? "full-title" : ""}`}
-                onClick={(e) => {
-                  if (!hasSelectedText()) {
-                    setShowFullTitle(!showFullTitle);
-                  }
-                }}
-                title={cardData.Title}
-              >
-                {showFullTitle
-                  ? cardData.Title
-                  : truncateText(cardData.Title, 100)}
-              </h2>
-              <div className="section-label">Summary:</div>
-              <p
-                className="summary-text"
-                onClick={(e) => {
-                  if (!hasSelectedText()) {
-                    setShowFullSummary(!showFullSummary);
-                  }
-                }}
-              >
-                {showFullSummary
-                  ? cardData.Summary
-                  : truncateText(cardData.Summary, 700)}
-              </p>
-              <div className="section-label">Tags:</div>
-              <div
-                className="tags"
-                onClick={(e) => {
-                  if (!hasSelectedText()) {
-                    setShowFullTags(!showFullTags);
-                  }
-                }}
-              >
-                {showFullTags
-                  ? tags.map((tag, index) => (
-                      <span key={index} className="tag">
-                        {tag}
-                      </span>
-                    ))
-                  : tags.slice(0, 15).map((tag, index) => (
-                      <span key={index} className="tag">
-                        {tag}
-                      </span>
-                    ))}
-                <input
-                  type="text"
-                  placeholder="Add a tag..."
-                  onKeyPress={handleTagAdd}
-                />
-              </div>
-              {/* Removed old textarea for notes. Now using markdown editor. */}
-              <div className="popup-buttons">
-                <button
-                  title="Delete"
-                  style={{
-                    backgroundImage: 'url("/assets/delete.png")',
-                    backgroundSize: "32px 32px",
-                    backgroundRepeat: "no-repeat",
-                    backgroundPosition: "center",
-                  }}
-                  onClick={() => setShowDeleteConfirm(true)}
-                  disabled={deleting}
-                />
-                <button
-                  title="Share"
-                  style={{
-                    backgroundImage: 'url("/assets/share.png")',
-                    backgroundSize: "32px 32px",
-                    backgroundRepeat: "no-repeat",
-                    backgroundPosition: "center",
-                  }}
-                />
-                <button
-                  title="Save"
-                  style={{
-                    backgroundImage: 'url("/assets/save.png")',
-                    backgroundSize: "32px 32px",
-                    backgroundRepeat: "no-repeat",
-                    backgroundPosition: "center",
-                  }}
-                  disabled={noteSaving}
-                  onClick={async () => {
-                    if (!noteContent.trim()) return;
-                    setNoteSaving(true);
-                    try {
-                      const { error } = await supabase
-                        .from("content")
-                        .update({ user_notes: noteContent })
-                        .eq("id", cardData.id);
-                      if (error) throw error;
-                      onClose();
-                      window.location.reload(); // Quick refresh for now
-                    } catch (err) {
-                      alert(err.message || "Failed to save note");
-                    } finally {
-                      setNoteSaving(false);
+                <h2
+                  className={`truncated-title ${showFullTitle ? "full-title" : ""}`}
+                  onClick={(e) => {
+                    if (!hasSelectedText()) {
+                      setShowFullTitle(!showFullTitle);
                     }
                   }}
-                />
+                  title={cardData.Title}
+                >
+                  {showFullTitle
+                    ? cardData.Title
+                    : truncateText(cardData.Title, 100)}
+                </h2>
+                <div className="section-label">Summary:</div>
+                <p
+                  className="summary-text"
+                  onClick={(e) => {
+                    if (!hasSelectedText()) {
+                      setShowFullSummary(!showFullSummary);
+                    }
+                  }}
+                >
+                  {showFullSummary
+                    ? cardData.Summary
+                    : truncateText(cardData.Summary, 700)}
+                </p>
+                <div className="section-label">Tags:</div>
+                <div
+                  className="tags"
+                  onClick={(e) => {
+                    if (!hasSelectedText()) {
+                      setShowFullTags(!showFullTags);
+                    }
+                  }}
+                >
+                  {showFullTags
+                    ? tags.map((tag, index) => (
+                        <span key={index} className="tag">
+                          {tag}
+                        </span>
+                      ))
+                    : tags.slice(0, 15).map((tag, index) => (
+                        <span key={index} className="tag">
+                          {tag}
+                        </span>
+                      ))}
+                  <input
+                    type="text"
+                    placeholder="Add a tag..."
+                    onKeyPress={handleTagAdd}
+                  />
+                </div>
+                {/* Removed old textarea for notes. Now using markdown editor. */}
+                <div className="popup-buttons">
+                  <button
+                    title="Delete"
+                    style={{
+                      backgroundImage: 'url("./assets/trash-can-solid-full.svg")',
+                      backgroundSize: "32px 32px",
+                      backgroundRepeat: "no-repeat",
+                      backgroundPosition: "center",
+                    }}
+                    onClick={() => setShowDeleteConfirm(true)}
+                    disabled={deleting}
+                  />
+                  <button
+                    title="Share"
+                    style={{
+                      backgroundImage: 'url("/assets/share.png")',
+                      backgroundSize: "32px 32px",
+                      backgroundRepeat: "no-repeat",
+                      backgroundPosition: "center",
+                    }}
+                  />
+                  <button
+                    title="Save"
+                    style={{
+                      backgroundImage: 'url("./assets/save.png")',
+                      backgroundSize: "32px 32px",
+                      backgroundRepeat: "no-repeat",
+                      backgroundPosition: "center",
+                    }}
+                    disabled={noteSaving}
+                    onClick={async () => {
+                      if (!noteContent.trim()) return;
+                      setNoteSaving(true);
+                      try {
+                        const { error } = await supabase
+                          .from("content")
+                          .update({ user_notes: noteContent })
+                          .eq("id", cardData.id);
+                        if (error) throw error;
+                        onClose();
+                        window.location.reload(); // Quick refresh for now
+                      } catch (err) {
+                        alert(err.message || "Failed to save note");
+                      } finally {
+                        setNoteSaving(false);
+                      }
+                    }}
+                  />
+                </div>
               </div>
-            </div>
           )}
         </div>
       </div>

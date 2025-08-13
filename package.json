@@ -2,6 +2,7 @@
   "name": "supermind-ui",
   "version": "0.1.0",
   "private": true,
+  "homepage": ".",
   "dependencies": {
     "@codemirror/lang-markdown": "^6.3.4",
     "@codemirror/language-data": "^6.5.1",

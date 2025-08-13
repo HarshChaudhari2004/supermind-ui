@@ -148,7 +148,7 @@ function Settings({ isOpen, onClose, onSignOut, isDarkTheme, onClearCache }) {
           <div className="settings-section">
             <h3>Account</h3>
             <button onClick={onSignOut} className="logout-button">
-              <img src="/assets/logout.png" alt="Sign Out" />
+              <img src="./assets/logout.png" alt="Sign Out" />
               Sign Out
             </button>
           </div>

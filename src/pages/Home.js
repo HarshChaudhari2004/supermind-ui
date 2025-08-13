@@ -263,7 +263,7 @@ function Home() {
       id: 'add-note-card',
       title: 'Add New Note',
       video_type: 'note',
-      thumbnail_url: '/assets/notes.png',
+      thumbnail_url: './assets/notes.png',
       original_url: null,
       date_added: null,
       content: 'Click to create a new note',
@@ -293,7 +293,7 @@ function Home() {
       <div className="left-sidebar">
         <div className="sidebar-top">
           <div className="logo">
-            <img src="/assets/logo.png" alt="Logo" />
+            <img src="./assets/logo.png" alt="Logo" />
           </div>
           <div className="logo-text">SuperMind</div>
         </div>
@@ -301,32 +301,32 @@ function Home() {
         <div className="sidebar-bottom">
           <button onClick={toggleTheme} className="theme-toggle">
             <img
-              src={isDarkTheme ? "/assets/sun.svg" : "/assets/moon.svg"}
+              src={isDarkTheme ? "./assets/sun.svg" : "./assets/moon.svg"}
               alt="Theme Icon"
               className="theme-icon"
             />
           </button>
           <button id="ai-button">
-            <img src="/assets/AI-logo.png" alt="AI" />
+            <img src="./assets/AI-logo.png" alt="AI" />
           </button>
           <button id="layout-button" onClick={toggleLayoutOptions}>
-            <img src="/assets/layout.png" alt="Layout" />
+            <img src="./assets/layout.png" alt="Layout" />
           </button>
           {showLayoutOptions && (
             <div className="layout-options">
               <button onClick={() => handleLayoutChange('large')}>
-                <img src="/assets/large-layout.svg" alt="Large Layout" />
+                <img src="./assets/large-layout.svg" alt="Large Layout" />
               </button>
               <button onClick={() => handleLayoutChange('medium')}>
-                <img src="/assets/medium-layout.svg" alt="Medium Layout" />
+                <img src="./assets/medium-layout.svg" alt="Medium Layout" />
               </button>
               <button onClick={() => handleLayoutChange('small')}>
-                <img src="/assets/small-layout.svg" alt="Small Layout" />
+                <img src="./assets/small-layout.svg" alt="Small Layout" />
               </button>
             </div>
           )}
           <button id="settings-button" onClick={() => setShowSettings(true)}>
-            <img src="/assets/settings.png" alt="Settings" />
+            <img src="./assets/settings.png" alt="Settings" />
           </button>
         </div>
       </div>
