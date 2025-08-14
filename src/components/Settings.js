@@ -6,6 +6,7 @@ function Settings({ isOpen, onClose, onSignOut, isDarkTheme, onClearCache }) {
     localStorage: 0,
     sessionStorage: 0,
     indexedDB: 0,
+    serverCache: 0,
     total: 0
   });
   const [isClearing, setIsClearing] = useState(false);
@@ -14,6 +15,13 @@ function Settings({ isOpen, onClose, onSignOut, isDarkTheme, onClearCache }) {
   useEffect(() => {
     if (isOpen) {
       calculateCacheSize();
+      calculateServerCacheSize().then(serverCacheSize => {
+        setCacheStats(prevStats => ({
+          ...prevStats,
+          serverCache: serverCacheSize,
+          total: prevStats.total + serverCacheSize,
+        }));
+      });
     }
   }, [isOpen]);
 
@@ -55,6 +63,19 @@ function Settings({ isOpen, onClose, onSignOut, isDarkTheme, onClearCache }) {
     }
   };
 
+  const calculateServerCacheSize = async () => {
+    try {
+      const response = await fetch('http://localhost:8000/api/get-server-cache-size/', {
+        method: 'GET',
+      });
+      const data = await response.json();
+      return data.cache_size;
+    } catch (error) {
+      console.error('Error fetching server cache size:', error);
+      return 0;
+    }
+  };
+
   const formatBytes = (bytes) => {
     if (bytes === 0) return '0 Bytes';
     const k = 1024;
@@ -84,6 +105,11 @@ function Settings({ isOpen, onClose, onSignOut, isDarkTheme, onClearCache }) {
       // Clear sessionStorage
       sessionStorage.clear();
 
+      // Clear server-side cache
+      await fetch('http://localhost:8000/api/clear-server-cache/', {
+        method: 'GET',
+      });
+
       // Call parent component's cache clear function
       if (onClearCache) {
         await onClearCache();
@@ -98,6 +124,20 @@ function Settings({ isOpen, onClose, onSignOut, isDarkTheme, onClearCache }) {
       alert('Error clearing cache. Please try again.');
     } finally {
       setIsClearing(false);
+    }
+  };
+
+  const handleSignOut = async () => {
+    try {
+      // Clear all caches on logout
+      await handleClearCache();
+
+      // Call parent component's sign-out function
+      if (onSignOut) {
+        await onSignOut();
+      }
+    } catch (error) {
+      console.error('Error during sign-out:', error);
     }
   };
 
@@ -127,6 +167,10 @@ function Settings({ isOpen, onClose, onSignOut, isDarkTheme, onClearCache }) {
                 <span>Browser Cache:</span>
                 <span>{formatBytes(cacheStats.indexedDB)}</span>
               </div>
+              <div className="cache-stat">
+                <span>Server Cache:</span>
+                <span>{formatBytes(cacheStats.serverCache || 0)}</span>
+              </div>
               <div className="cache-stat total">
                 <span>Total Storage:</span>
                 <span>{formatBytes(cacheStats.total)}</span>
@@ -147,7 +191,7 @@ function Settings({ isOpen, onClose, onSignOut, isDarkTheme, onClearCache }) {
 
           <div className="settings-section">
             <h3>Account</h3>
-            <button onClick={onSignOut} className="logout-button">
+            <button onClick={handleSignOut} className="logout-button">
               <img src="./assets/logout.png" alt="Sign Out" />
               Sign Out
             </button>

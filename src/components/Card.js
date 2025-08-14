@@ -23,26 +23,40 @@ function Card({ thumbnailUrl, url, title, type, dateAdded, content, onClick }) {
       return;
     }
 
-    // Check if the image is already cached locally
-    const cachedImage = localStorage.getItem(thumbnailUrl);
-    if (cachedImage) {
-      setImageUrl(cachedImage);
-      setIsLoading(false);
-      return;
-    }
+    const fetchAndCacheImage = async () => {
+      try {
+        const cache = await caches.open('image-cache');
+        const cachedResponse = await cache.match(thumbnailUrl);
 
-    // Use proxy for non-YouTube thumbnails to bypass CORS
-    if (cardType !== 'youtube' && cardType !== 'note') {
-      const proxyUrl = `http://localhost:8000/api/proxy-image/?url=${encodeURIComponent(thumbnailUrl)}`;
-      setImageUrl(proxyUrl);
+        if (cachedResponse) {
+          setImageUrl(URL.createObjectURL(await cachedResponse.blob()));
+          setIsLoading(false);
+          return;
+        }
 
-      // Cache the proxy URL locally
-      localStorage.setItem(thumbnailUrl, proxyUrl);
-    } else {
-      // YouTube thumbnails work directly, no proxy needed
-      setImageUrl(thumbnailUrl);
-    }
-    setIsLoading(false);
+        // Use proxy for non-YouTube thumbnails to bypass CORS
+        if (cardType !== 'youtube' && cardType !== 'note') {
+          const proxyUrl = `http://localhost:8000/api/proxy-image/?url=${encodeURIComponent(thumbnailUrl)}`;
+          const response = await fetch(proxyUrl);
+
+          if (response.ok) {
+            cache.put(thumbnailUrl, response.clone());
+            setImageUrl(URL.createObjectURL(await response.blob()));
+          } else {
+            console.error(`Failed to fetch image: ${response.statusText}`);
+          }
+        } else {
+          // YouTube thumbnails work directly, no proxy needed
+          setImageUrl(thumbnailUrl);
+        }
+      } catch (error) {
+        console.error(`Error caching image: ${error}`);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchAndCacheImage();
   }, [thumbnailUrl, cardType]);
 
   const formatDate = (dateString) => {

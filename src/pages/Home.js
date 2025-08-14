@@ -26,7 +26,7 @@ function Home() {
   const [searchLoading, setSearchLoading] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [page, setPage] = useState(0);
-  const PAGE_SIZE = 50;
+  const PAGE_SIZE = 200;
   const observer = useRef();
   const [showNoteModal, setShowNoteModal] = useState(false);
   const [newNoteContent, setNewNoteContent] = useState("");
