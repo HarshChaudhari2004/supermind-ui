@@ -9,6 +9,7 @@ import Auth from "../components/Auth";
 import { supabase } from '../lib/supabase';
 import { Analytics } from "@vercel/analytics/react";
 import debounce from 'lodash/debounce';
+import { performSearch } from '../lib/search';
 
 function Home() {
   const [session, setSession] = useState(null);
@@ -33,111 +34,18 @@ function Home() {
   const [noteSaving, setNoteSaving] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
 
-  const performSearch = useCallback(async (query, pageNumber = 0) => {
-    const searchId = Date.now();
-    performSearch.lastSearchId = searchId;
-
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Not authenticated');
-
-      setSearchLoading(true);
-
-      if (performSearch.lastSearchId !== searchId) return;
-
-      const fromRow = pageNumber * PAGE_SIZE;
-
-      if (!query.trim()) {
-        const { data, error } = await supabase
-          .from('content')
-          .select('*')
-          .eq('user_id', user.id)
-          .order('date_added', { ascending: false })
-          .range(fromRow, fromRow + PAGE_SIZE - 1);
-
-        if (error) throw error;
-
-        if (performSearch.lastSearchId !== searchId) return;
-
-        if (pageNumber === 0) {
-          setCardsData(data || []);
-        } else {
-          setCardsData(prev => [...prev, ...(data || [])]);
-        }
-
-        setHasMore(data.length === PAGE_SIZE);
-        setPage(pageNumber);
-        return;
-      }
-
-      // Hybrid search with pagination
-      const { data, error } = await supabase
-        .rpc('search_content', {
-          search_query: query,
-          user_id_input: user.id,
-          similarity_threshold: 0.1,
-          max_results: PAGE_SIZE,
-          offset_rows: fromRow
-        });
-
-      if (performSearch.lastSearchId !== searchId) return;
-
-      if (error) {
-        console.error('Search error:', error);
-        // Fallback to basic search
-        const { data: fallbackData, error: fallbackError } = await supabase
-          .from('content')
-          .select('*')
-          .eq('user_id', user.id)
-          .or(`title.ilike.%${query}%,summary.ilike.%${query}%,tags.ilike.%${query}%,channel_name.ilike.%${query}%,user_notes.ilike.%${query}%`)
-          .order('date_added', { ascending: false })
-          .range(fromRow, fromRow + PAGE_SIZE - 1);
-
-        if (fallbackError) throw fallbackError;
-
-        if (performSearch.lastSearchId !== searchId) return;
-
-        if (pageNumber === 0) {
-          // Sort fallback data by date_added descending to ensure newest items first
-          const sortedData = (fallbackData || []).sort((a, b) => new Date(b.date_added) - new Date(a.date_added));
-          setCardsData(sortedData);
-        } else {
-          const sortedData = (fallbackData || []).sort((a, b) => new Date(b.date_added) - new Date(a.date_added));
-          setCardsData(prev => [...prev, ...sortedData]);
-        }
-
-        setHasMore(fallbackData.length === PAGE_SIZE);
-      } else {
-        if (pageNumber === 0) {
-          // Sort data by date_added descending to ensure newest items first
-          const sortedData = (data || []).sort((a, b) => new Date(b.date_added) - new Date(a.date_added));
-          setCardsData(sortedData);
-        } else {
-          const sortedData = (data || []).sort((a, b) => new Date(b.date_added) - new Date(a.date_added));
-          setCardsData(prev => [...prev, ...sortedData]);
-        }
-        setHasMore(data.length === PAGE_SIZE);
-      }
-      setPage(pageNumber);
-    } catch (error) {
-      console.error('Search error:', error);
-      if (error.message.includes('Not authenticated')) {
-        setSession(null);
-      }
-    } finally {
-      if (performSearch.lastSearchId === searchId) {
-        setSearchLoading(false);
-      }
-    }
-  }, []);
-
   const debouncedSearch = useCallback(
     debounce((query) => {
       setSearchTerm(query);
       setPage(0);
-      performSearch(query, 0);
+      performSearch(query, 0, session.user.id)
+        .then(({ data, hasMore }) => {
+          setCardsData(data);
+          setHasMore(hasMore);
+        })
+        .catch((error) => console.error('Error during search:', error));
     }, 500),
-    [performSearch]
+    [session]
   );
 
   useEffect(() => {
@@ -163,7 +71,12 @@ function Home() {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       if (session) {
-        performSearch('', 0);
+        performSearch('', 0, session.user.id)
+          .then(({ data, hasMore }) => {
+            setCardsData(data);
+            setHasMore(hasMore);
+          })
+          .catch((error) => console.error('Error during initial fetch:', error));
       }
       setIsLoading(false);
     });
@@ -180,18 +93,23 @@ function Home() {
     });
 
     return () => subscription?.unsubscribe();
-  }, [performSearch]);
+  }, []);
 
-  const lastCardElementRef = useCallback(node => {
+  const lastCardElementRef = useCallback((node) => {
     if (searchLoading) return;
     if (observer.current) observer.current.disconnect();
-    observer.current = new IntersectionObserver(entries => {
+    observer.current = new IntersectionObserver((entries) => {
       if (entries[0].isIntersecting && hasMore) {
-        performSearch(searchQuery, page + 1);
+        performSearch(searchQuery, page + 1, session.user.id)
+          .then(({ data, hasMore }) => {
+            setCardsData((prev) => [...prev, ...data]);
+            setHasMore(hasMore);
+          })
+          .catch((error) => console.error('Error during pagination:', error));
       }
     });
     if (node) observer.current.observe(node);
-  }, [searchLoading, hasMore, searchQuery, page, performSearch]);
+  }, [searchLoading, hasMore, searchQuery, page, session]);
 
   const handleSignOut = async () => {
     try {
