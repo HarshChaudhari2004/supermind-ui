@@ -56,8 +56,11 @@ function Card({ thumbnailUrl, url, title, type, dateAdded, content, onClick }) {
       }
     };
 
-    fetchAndCacheImage();
-  }, [thumbnailUrl, cardType]);
+    // Avoid re-fetching if already set
+    if (!imageUrl || imageUrl === "./assets/image-placeholder.png") {
+      fetchAndCacheImage();
+    }
+  }, [thumbnailUrl, cardType, imageUrl]);
 
   const formatDate = (dateString) => {
     if (!dateString) return '';

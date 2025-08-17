@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
+import { addContentToDB } from '../lib/indexedDB';
 import './Auth.css'
 
 export default function Auth() {
@@ -32,11 +33,20 @@ export default function Auth() {
         if (error) throw error
         setError('Please check your inbox for email verification!')
       } else {
-        const { error } = await supabase.auth.signInWithPassword({
+        const { data, error } = await supabase.auth.signInWithPassword({
           email,
           password,
         })
         if (error) throw error
+
+        // Fetch all user data and store in IndexedDB
+        const { data: userData, error: fetchError } = await supabase
+          .from('content')
+          .select('*')
+          .eq('user_id', data.user.id)
+
+        if (fetchError) throw fetchError
+        await addContentToDB(userData || [])
       }
     } catch (error) {
       setError(error.message)

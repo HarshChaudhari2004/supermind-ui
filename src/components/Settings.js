@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import './Settings.css';
+import db from '../lib/indexedDB';
 
 function Settings({ isOpen, onClose, onSignOut, isDarkTheme, onClearCache }) {
   const [cacheStats, setCacheStats] = useState({
@@ -131,6 +132,9 @@ function Settings({ isOpen, onClose, onSignOut, isDarkTheme, onClearCache }) {
     try {
       // Clear all caches on logout
       await handleClearCache();
+
+      // Clear IndexedDB
+      await db.delete();
 
       // Call parent component's sign-out function
       if (onSignOut) {

@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { addContentToDB, searchContentInDB } from './indexedDB';
 
 const PAGE_SIZE = 200;
 
@@ -14,6 +15,13 @@ export async function performSearch(query, pageNumber = 0, userId) {
   performSearch.lastSearchId = searchId;
 
   try {
+    // Step 1: Search in IndexedDB without debounce
+    const localResults = await searchContentInDB(query);
+    if (localResults.length > 0) {
+      return { data: localResults, hasMore: false }; // Return local results
+    }
+
+    // Step 2: Fallback to Supabase with debounce
     const fromRow = pageNumber * PAGE_SIZE;
 
     if (!query.trim()) {
@@ -56,6 +64,11 @@ export async function performSearch(query, pageNumber = 0, userId) {
         data: (fallbackData || []).sort((a, b) => new Date(b.date_added) - new Date(a.date_added)),
         hasMore: fallbackData.length === PAGE_SIZE,
       };
+    }
+
+    // Step 3: Update IndexedDB with new data
+    if (data) {
+      await addContentToDB(data);
     }
 
     return {

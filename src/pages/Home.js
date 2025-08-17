@@ -1,5 +1,5 @@
 // supermind-ui/src/pages/Home.js
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback, useRef, memo } from "react";
 import Masonry from 'react-masonry-css';
 import "./Home.css";
 import Card from "../components/Card";
@@ -10,6 +10,10 @@ import { supabase } from '../lib/supabase';
 import { Analytics } from "@vercel/analytics/react";
 import debounce from 'lodash/debounce';
 import { performSearch } from '../lib/search';
+import { searchContentInDB } from "../lib/indexedDB";
+import db from '../lib/indexedDB';
+
+const MemoizedCard = memo(Card);
 
 function Home() {
   const [session, setSession] = useState(null);
@@ -63,7 +67,17 @@ function Home() {
   const handleSearchChange = (e) => {
     const query = e.target.value;
     setSearchQuery(query);
-    debouncedSearch(query);
+
+    // Directly search IndexedDB without debounce
+    searchContentInDB(query).then((localResults) => {
+      if (localResults.length > 0) {
+        setCardsData(localResults);
+        setHasMore(false);
+      } else {
+        // Use debounced search for Supabase fallback
+        debouncedSearch(query);
+      }
+    });
   };
 
   useEffect(() => {
@@ -114,6 +128,10 @@ function Home() {
   const handleSignOut = async () => {
     try {
       setShowSettings(false); // Close settings modal before signing out
+
+      // Clear IndexedDB
+      await db.delete();
+
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
     } catch (error) {
@@ -262,7 +280,7 @@ function Home() {
                 key={card.id || index}
                 ref={index === displayData.length - 1 ? lastCardElementRef : null}
               >
-                <Card
+                <MemoizedCard
                   thumbnailUrl={card.thumbnail_url}
                   title={card.title}
                   type={card.video_type}
