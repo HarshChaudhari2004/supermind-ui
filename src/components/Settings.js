@@ -66,7 +66,7 @@ function Settings({ isOpen, onClose, onSignOut, isDarkTheme, onClearCache }) {
 
   const calculateServerCacheSize = async () => {
     try {
-      const response = await fetch('http://localhost:8000/api/get-server-cache-size/', {
+      const response = await fetch('http://localhost:8000/instagram/api/get-server-cache-size/', {
         method: 'GET',
       });
       const data = await response.json();
@@ -107,9 +107,13 @@ function Settings({ isOpen, onClose, onSignOut, isDarkTheme, onClearCache }) {
       sessionStorage.clear();
 
       // Clear server-side cache
-      await fetch('http://localhost:8000/api/clear-server-cache/', {
+      const response = await fetch('http://localhost:8000/instagram/api/clear-server-cache/', {
         method: 'GET',
       });
+
+      if (!response.ok) {
+        throw new Error('Failed to clear server-side cache.');
+      }
 
       // Call parent component's cache clear function
       if (onClearCache) {

@@ -37,7 +37,7 @@ const getIframeSrc = (url) => {
 
   if (isBlocked) {
     // Use our webpage proxy for blocked domains (fallback)
-    return `http://localhost:8000/api/proxy-webpage/?url=${encodeURIComponent(
+    return `http://localhost:8000/instagram/api/proxy-webpage/?url=${encodeURIComponent(
       url
     )}`;
   }
@@ -249,7 +249,7 @@ export default function Popup({ cardData, onClose, isDarkTheme }) {
       let iframeSrc = getIframeSrc(cardData.url);
       // Force proxy for better compatibility
       if (!cardData.url?.includes("youtube")) {
-        iframeSrc = `http://localhost:8000/api/proxy-webpage/?url=${encodeURIComponent(
+        iframeSrc = `http://localhost:8000/instagram/api/proxy-webpage/?url=${encodeURIComponent(
           cardData.url
         )}`;
       }

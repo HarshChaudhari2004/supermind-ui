@@ -36,7 +36,7 @@ function Card({ thumbnailUrl, url, title, type, dateAdded, content, onClick }) {
 
         // Use proxy for non-YouTube thumbnails to bypass CORS
         if (cardType !== 'youtube' && cardType !== 'note') {
-          const proxyUrl = `http://localhost:8000/api/proxy-image/?url=${encodeURIComponent(thumbnailUrl)}`;
+          const proxyUrl = `http://localhost:8000/instagram/api/proxy-image/?url=${encodeURIComponent(thumbnailUrl)}`;
           const response = await fetch(proxyUrl);
 
           if (response.ok) {
@@ -56,11 +56,8 @@ function Card({ thumbnailUrl, url, title, type, dateAdded, content, onClick }) {
       }
     };
 
-    // Avoid re-fetching if already set
-    if (!imageUrl || imageUrl === "./assets/image-placeholder.png") {
-      fetchAndCacheImage();
-    }
-  }, [thumbnailUrl, cardType, imageUrl]);
+    fetchAndCacheImage();
+  }, [thumbnailUrl, cardType]);
 
   const formatDate = (dateString) => {
     if (!dateString) return '';

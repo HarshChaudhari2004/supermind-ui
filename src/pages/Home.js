@@ -116,7 +116,11 @@ function Home() {
       if (entries[0].isIntersecting && hasMore) {
         performSearch(searchQuery, page + 1, session.user.id)
           .then(({ data, hasMore }) => {
-            setCardsData((prev) => [...prev, ...data]);
+            setCardsData((prev) => {
+              const existingIds = new Set(prev.map((card) => card.id));
+              const newCards = data.filter((card) => !existingIds.has(card.id));
+              return [...prev, ...newCards];
+            });
             setHasMore(hasMore);
           })
           .catch((error) => console.error('Error during pagination:', error));
@@ -160,6 +164,29 @@ function Home() {
     }
   };
 
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === '/') {
+        e.preventDefault();
+        document.querySelector('.search-bar input').focus();
+      } else if (e.key === 'n') {
+        e.preventDefault();
+        setShowNoteModal(true);
+      } else if (e.key === 'Escape') {
+        const searchInput = document.querySelector('.search-bar input');
+        if (document.activeElement === searchInput) {
+          searchInput.blur();
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, []);
+
   // Loading state
   if (isLoading) {
     return <div className="loading">Loading...</div>;
@@ -194,17 +221,18 @@ function Home() {
   };
 
   // Create the display data with the "Add New Note" card at the beginning
-  const displayData = searchQuery.trim() === '' ? 
-    [{
-      id: 'add-note-card',
-      title: 'Add New Note',
-      video_type: 'note',
-      thumbnail_url: './assets/notes.png',
-      original_url: null,
-      date_added: null,
-      content: 'Click to create a new note',
-      isAddNoteCard: true
-    }, ...cardsData] : cardsData;
+  const displayData = searchQuery.trim() === '' && !cardsData.some(card => card.isAddNoteCard)
+    ? [{
+        id: 'add-note-card',
+        title: 'Add New Note',
+        video_type: 'note',
+        thumbnail_url: './assets/notes.png',
+        original_url: null,
+        date_added: null,
+        content: 'Click to create a new note',
+        isAddNoteCard: true
+      }, ...cardsData]
+    : cardsData;
 
   return (
     <div className={`home-container ${isDarkTheme ? 'dark-theme' : 'light-theme'}`}>
