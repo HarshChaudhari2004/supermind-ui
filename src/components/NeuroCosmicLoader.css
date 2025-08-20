@@ -1,0 +1,323 @@
+/* NeuroCosmicLoader.css */
+
+.neuro-cosmic-loader {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: radial-gradient(circle at center, #14051C 0%, #000000 70%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  overflow: hidden;
+  font-family: 'Lexend Deca', sans-serif;
+}
+
+.loader-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+}
+
+/* SuperMind Logo */
+.loader-logo {
+  position: relative;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 40px;
+  animation: logoFloat 3s ease-in-out infinite;
+}
+
+.loader-logo img {
+  width: 120px;
+  height: 120px;
+  filter: drop-shadow(0 0 30px rgba(161, 0, 255, 0.8));
+  animation: logoPulse 2s ease-in-out infinite;
+}
+
+.logo-glow {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 200px;
+  height: 200px;
+  background: radial-gradient(circle, rgba(161, 0, 255, 0.3) 0%, transparent 70%);
+  border-radius: 50%;
+  animation: glowPulse 3s ease-in-out infinite;
+}
+
+@keyframes logoFloat {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+}
+
+@keyframes logoPulse {
+  0%, 100% { 
+    filter: drop-shadow(0 0 30px rgba(161, 0, 255, 0.8)) brightness(1);
+    transform: scale(1);
+  }
+  50% { 
+    filter: drop-shadow(0 0 50px rgba(161, 0, 255, 1)) brightness(1.2);
+    transform: scale(1.05);
+  }
+}
+
+@keyframes glowPulse {
+  0%, 100% { 
+    opacity: 0.3;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  50% { 
+    opacity: 0.6;
+    transform: translate(-50%, -50%) scale(1.2);
+  }
+}
+
+/* Loading Text */
+.loader-text {
+  position: relative;
+  z-index: 3;
+  text-align: center;
+  margin-bottom: 60px;
+}
+
+.loader-text h2 {
+  font-size: 28px;
+  font-weight: 600;
+  color: #ffffff;
+  margin: 0;
+  text-shadow: 0 0 20px rgba(161, 0, 255, 0.8);
+  animation: textGlow 2s ease-in-out infinite;
+  letter-spacing: 1px;
+}
+
+.text-glow {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(45deg, rgba(161, 0, 255, 0.2), rgba(255, 255, 255, 0.1));
+  border-radius: 20px;
+  filter: blur(20px);
+  animation: textGlowPulse 3s ease-in-out infinite;
+  z-index: -1;
+}
+
+@keyframes textGlow {
+  0%, 100% { 
+    text-shadow: 0 0 20px rgba(161, 0, 255, 0.8);
+    color: #ffffff;
+  }
+  50% { 
+    text-shadow: 0 0 40px rgba(161, 0, 255, 1), 0 0 60px rgba(255, 255, 255, 0.5);
+    color: #f0f0f0;
+  }
+}
+
+@keyframes textGlowPulse {
+  0%, 100% { opacity: 0.2; }
+  50% { opacity: 0.4; }
+}
+
+/* Progress Indicator */
+.loader-progress {
+  position: relative;
+  z-index: 3;
+  width: 300px;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+  margin-bottom: 40px;
+  overflow: hidden;
+}
+
+.progress-orb {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  transform: translateY(-50%);
+  width: 20px;
+  height: 20px;
+  background: radial-gradient(circle, rgba(255, 255, 255, 1) 0%, rgba(161, 0, 255, 0.8) 70%);
+  border-radius: 50%;
+  box-shadow: 0 0 20px rgba(161, 0, 255, 0.8);
+  animation: progressOrb 3s ease-in-out infinite;
+}
+
+.progress-trail {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  background: linear-gradient(90deg, transparent 0%, rgba(161, 0, 255, 0.6) 50%, transparent 100%);
+  border-radius: 3px;
+  animation: progressTrail 3s ease-in-out infinite;
+}
+
+.progress-fill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  background: linear-gradient(90deg, rgba(161, 0, 255, 0.8) 0%, rgba(161, 0, 255, 0.4) 100%);
+  border-radius: 3px;
+  z-index: 1;
+}
+
+.progress-text {
+  position: relative;
+  z-index: 3;
+  color: rgba(161, 0, 255, 0.9);
+  font-size: 14px;
+  font-weight: bold;
+  margin-bottom: 20px;
+  text-shadow: 0 0 10px rgba(161, 0, 255, 0.5);
+}
+
+@keyframes progressOrb {
+  0% { left: -10px; }
+  100% { left: calc(100% - 10px); }
+}
+
+@keyframes progressTrail {
+  0% { width: 0%; opacity: 1; }
+  50% { opacity: 0.8; }
+  100% { width: 100%; opacity: 0.3; }
+}
+
+/* Phase Indicator */
+.phase-indicator {
+  position: relative;
+  z-index: 3;
+  display: flex;
+  gap: 20px;
+  align-items: center;
+}
+
+.phase-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.3);
+  border: 2px solid rgba(161, 0, 255, 0.5);
+  transition: all 0.5s ease;
+  position: relative;
+}
+
+.phase-dot.active {
+  background: rgba(161, 0, 255, 0.8);
+  border-color: rgba(255, 255, 255, 0.8);
+  box-shadow: 0 0 20px rgba(161, 0, 255, 0.8);
+  animation: dotPulse 1s ease-in-out infinite;
+}
+
+.phase-dot.active::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: rgba(161, 0, 255, 0.3);
+  animation: dotRipple 2s ease-out infinite;
+}
+
+@keyframes dotPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.2); }
+}
+
+@keyframes dotRipple {
+  0% {
+    width: 20px;
+    height: 20px;
+    opacity: 0.8;
+  }
+  100% {
+    width: 40px;
+    height: 40px;
+    opacity: 0;
+  }
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .loader-logo img {
+    width: 80px;
+    height: 80px;
+  }
+
+  .logo-glow {
+    width: 150px;
+    height: 150px;
+  }
+
+  .loader-text h2 {
+    font-size: 20px;
+  }
+
+  .loader-progress {
+    width: 250px;
+  }
+}
+
+@media (max-width: 480px) {
+  .loader-logo img {
+    width: 60px;
+    height: 60px;
+  }
+
+  .logo-glow {
+    width: 120px;
+    height: 120px;
+  }
+
+  .loader-text h2 {
+    font-size: 16px;
+  }
+
+  .loader-progress {
+    width: 200px;
+  }
+
+  .phase-indicator {
+    gap: 15px;
+  }
+
+  .phase-dot {
+    width: 10px;
+    height: 10px;
+  }
+}
+
+/* Light theme support */
+:root.light-theme .neuro-cosmic-loader {
+  background: radial-gradient(circle at center, #f0f0f0 0%, #ffffff 70%);
+}
+
+:root.light-theme .loader-text h2 {
+  color: #333333;
+  text-shadow: 0 0 20px rgba(161, 0, 255, 0.6);
+}
+
+:root.light-theme .loader-progress {
+  background: rgba(0, 0, 0, 0.1);
+}
+
+:root.light-theme .phase-dot {
+  background: rgba(0, 0, 0, 0.2);
+  border-color: rgba(161, 0, 255, 0.7);
+}

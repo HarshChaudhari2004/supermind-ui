@@ -1,6 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import './Settings.css';
 import db from '../lib/indexedDB';
+import { useSyncService } from '../hooks/useSyncService';
+import { 
+  cleanupImageCache, 
+  clearFailedImageCache, 
+  getCacheStats, 
+  performFullCacheCleanup 
+} from '../lib/cacheUtils';
 
 function Settings({ isOpen, onClose, onSignOut, isDarkTheme, onClearCache }) {
   const [cacheStats, setCacheStats] = useState({
@@ -8,9 +15,16 @@ function Settings({ isOpen, onClose, onSignOut, isDarkTheme, onClearCache }) {
     sessionStorage: 0,
     indexedDB: 0,
     serverCache: 0,
+    browserImageCache: 0,
+    failedImageUrls: 0,
     total: 0
   });
   const [isClearing, setIsClearing] = useState(false);
+  const [advancedCacheStats, setAdvancedCacheStats] = useState(null);
+  const [isRecovering, setIsRecovering] = useState(false);
+  
+  // Add sync service hook
+  const { syncStatus, forceSync, recoverData } = useSyncService();
 
   // Calculate cache sizes
   useEffect(() => {
@@ -23,8 +37,24 @@ function Settings({ isOpen, onClose, onSignOut, isDarkTheme, onClearCache }) {
           total: prevStats.total + serverCacheSize,
         }));
       });
+      // Get advanced cache statistics
+      updateAdvancedCacheStats();
     }
   }, [isOpen]);
+
+  const updateAdvancedCacheStats = async () => {
+    try {
+      const stats = await getCacheStats();
+      setAdvancedCacheStats(stats);
+      setCacheStats(prevStats => ({
+        ...prevStats,
+        browserImageCache: stats.totalSize,
+        failedImageUrls: stats.failedUrls
+      }));
+    } catch (error) {
+      console.error('Error getting advanced cache stats:', error);
+    }
+  };
 
   const calculateCacheSize = async () => {
     try {
@@ -88,13 +118,9 @@ function Settings({ isOpen, onClose, onSignOut, isDarkTheme, onClearCache }) {
   const handleClearCache = async () => {
     setIsClearing(true);
     try {
-      // Clear browser caches
-      if ('caches' in window) {
-        const cacheNames = await caches.keys();
-        await Promise.all(
-          cacheNames.map(cacheName => caches.delete(cacheName))
-        );
-      }
+      // Perform comprehensive cache cleanup
+      const cleanupResults = await performFullCacheCleanup();
+      console.log('Cache cleanup results:', cleanupResults);
 
       // Clear localStorage (keep essential data)
       const layoutMode = localStorage.getItem('layoutMode');
@@ -108,7 +134,10 @@ function Settings({ isOpen, onClose, onSignOut, isDarkTheme, onClearCache }) {
 
       // Clear server-side cache
       const response = await fetch('http://localhost:8000/instagram/api/clear-server-cache/', {
-        method: 'GET',
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
       });
 
       if (!response.ok) {
@@ -122,8 +151,13 @@ function Settings({ isOpen, onClose, onSignOut, isDarkTheme, onClearCache }) {
 
       // Recalculate cache stats
       await calculateCacheSize();
+      await updateAdvancedCacheStats();
       
-      alert('Cache cleared successfully! Fresh data will be loaded.');
+      const message = cleanupResults.browserCacheRemoved > 0 || cleanupResults.failedCacheCleared > 0 
+        ? `Cache cleared successfully! Removed ${cleanupResults.browserCacheRemoved} invalid images and ${cleanupResults.failedCacheCleared} failed URLs.`
+        : 'Cache cleared successfully! Fresh data will be loaded.';
+      
+      alert(message);
     } catch (error) {
       console.error('Error clearing cache:', error);
       alert('Error clearing cache. Please try again.');
@@ -146,6 +180,27 @@ function Settings({ isOpen, onClose, onSignOut, isDarkTheme, onClearCache }) {
       }
     } catch (error) {
       console.error('Error during sign-out:', error);
+    }
+  };
+
+  const handleDataRecovery = async () => {
+    setIsRecovering(true);
+    try {
+      console.log('Starting data recovery...');
+      const success = await recoverData();
+      
+      if (success) {
+        alert('Data recovery successful! Your content has been restored from the server.');
+        // Refresh the page to reload the recovered data
+        window.location.reload();
+      } else {
+        alert('Data recovery failed. Please check the console for errors.');
+      }
+    } catch (error) {
+      console.error('Error during data recovery:', error);
+      alert('Data recovery failed: ' + error.message);
+    } finally {
+      setIsRecovering(false);
     }
   };
 
@@ -176,14 +231,43 @@ function Settings({ isOpen, onClose, onSignOut, isDarkTheme, onClearCache }) {
                 <span>{formatBytes(cacheStats.indexedDB)}</span>
               </div>
               <div className="cache-stat">
+                <span>Image Cache:</span>
+                <span>{formatBytes(cacheStats.browserImageCache || 0)}</span>
+              </div>
+              <div className="cache-stat">
                 <span>Server Cache:</span>
                 <span>{formatBytes(cacheStats.serverCache || 0)}</span>
               </div>
+              {cacheStats.failedImageUrls > 0 && (
+                <div className="cache-stat warning">
+                  <span>Failed Images:</span>
+                  <span>{cacheStats.failedImageUrls} URLs</span>
+                </div>
+              )}
               <div className="cache-stat total">
                 <span>Total Storage:</span>
                 <span>{formatBytes(cacheStats.total)}</span>
               </div>
             </div>
+            {advancedCacheStats && (
+              <div className="advanced-cache-info">
+                <details>
+                  <summary>Advanced Cache Details</summary>
+                  <div className="cache-detail">
+                    <span>Valid Images:</span>
+                    <span>{advancedCacheStats.validEntries}</span>
+                  </div>
+                  <div className="cache-detail">
+                    <span>Invalid Images:</span>
+                    <span>{advancedCacheStats.invalidEntries}</span>
+                  </div>
+                  <div className="cache-detail">
+                    <span>Total Entries:</span>
+                    <span>{advancedCacheStats.totalEntries}</span>
+                  </div>
+                </details>
+              </div>
+            )}
             <button 
               onClick={handleClearCache} 
               className="clear-cache-button"
@@ -194,6 +278,50 @@ function Settings({ isOpen, onClose, onSignOut, isDarkTheme, onClearCache }) {
             <p className="cache-description">
               Cached data includes: images, search results, user preferences, and temporary files. 
               Clearing cache will refresh all your content while preserving your layout settings.
+            </p>
+          </div>
+
+          <div className="settings-section">
+            <h3>Data Sync</h3>
+            <div className="sync-info">
+              <div className="sync-stat">
+                <span>Status:</span>
+                <span className={`sync-status ${syncStatus.isRunning ? 'running' : 'stopped'}`}>
+                  {syncStatus.isRunning ? '🟢 Running' : '🔴 Stopped'}
+                </span>
+              </div>
+              {syncStatus.lastSyncTime && (
+                <div className="sync-stat">
+                  <span>Last Sync:</span>
+                  <span>{new Date(syncStatus.lastSyncTime).toLocaleString()}</span>
+                </div>
+              )}
+              {syncStatus.nextSyncIn > 0 && (
+                <div className="sync-stat">
+                  <span>Next Sync:</span>
+                  <span>{Math.round(syncStatus.nextSyncIn / 1000 / 60)} min</span>
+                </div>
+              )}
+            </div>
+            <button 
+              onClick={forceSync} 
+              className="sync-button"
+            >
+              🔄 Sync Now
+            </button>
+            <button 
+              onClick={handleDataRecovery} 
+              className="sync-button"
+              disabled={isRecovering}
+              style={{ backgroundColor: '#ff6b35', marginTop: '8px' }}
+            >
+              {isRecovering ? '🔄 Recovering...' : '🚑 Emergency Data Recovery'}
+            </button>
+            <p className="sync-description">
+              Automatically syncs new data from server and cleans up old cached data. 
+              Runs every 5 minutes when the app is active.
+              <br />
+              <strong>Emergency Recovery:</strong> Use if your data was accidentally deleted. This will restore all your content from the server.
             </p>
           </div>
 

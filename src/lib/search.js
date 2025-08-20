@@ -1,5 +1,7 @@
 import { supabase } from './supabase';
 import { addContentToDB, searchContentInDB } from './indexedDB';
+import { parseQuery, hasFilters } from './queryParser';
+import { parseDateFilter } from './dateUtils';
 
 const PAGE_SIZE = 200;
 
@@ -15,13 +17,25 @@ export async function performSearch(query, pageNumber = 0, userId) {
   performSearch.lastSearchId = searchId;
 
   try {
-    // Step 1: Search in IndexedDB without debounce
+    // Check if the query contains filters
+    const containsFilters = hasFilters(query);
+    console.log(`Performing search for user ${userId} with query "${query}" (page ${pageNumber}) - Filters: ${containsFilters}`);
+
+    // Step 1: Search in IndexedDB
     const localResults = await searchContentInDB(query);
+    
+    // If query contains filters, ONLY return IndexedDB results (don't fallback to Supabase)
+    if (containsFilters) {
+      console.log('Query contains filters, using only IndexedDB results');
+      return { data: localResults, hasMore: false };
+    }
+    
+    // If we have local results and no filters, return them
     if (localResults.length > 0) {
-      return { data: localResults, hasMore: false }; // Return local results
+      return { data: localResults, hasMore: false };
     }
 
-    // Step 2: Fallback to Supabase with debounce
+    // Step 2: Fallback to Supabase only for non-filtered queries
     const fromRow = pageNumber * PAGE_SIZE;
 
     if (!query.trim()) {

@@ -6,14 +6,26 @@ import Card from "../components/Card";
 import Popup from "../components/Popup";
 import Settings from "../components/Settings";
 import Auth from "../components/Auth";
+import NeuroCosmicLoader from "../components/NeuroCosmicLoader";
 import { supabase } from '../lib/supabase';
 import { Analytics } from "@vercel/analytics/react";
 import debounce from 'lodash/debounce';
 import { performSearch } from '../lib/search';
-import { searchContentInDB } from "../lib/indexedDB";
+import { searchContentInDB, hasFilters } from "../lib/indexedDB";
 import db from '../lib/indexedDB';
+import { useSyncService } from '../hooks/useSyncService';
 
-const MemoizedCard = memo(Card);
+const MemoizedCard = memo(Card, (prevProps, nextProps) => {
+  // Only re-render if these specific props change
+  return (
+    prevProps.thumbnailUrl === nextProps.thumbnailUrl &&
+    prevProps.url === nextProps.url &&
+    prevProps.title === nextProps.title &&
+    prevProps.type === nextProps.type &&
+    prevProps.dateAdded === nextProps.dateAdded &&
+    prevProps.content === nextProps.content
+  );
+});
 
 function Home() {
   const [session, setSession] = useState(null);
@@ -28,6 +40,9 @@ function Home() {
   const [showLayoutOptions, setShowLayoutOptions] = useState(false);
   const [selectedCard, setSelectedCard] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [dataLoaded, setDataLoaded] = useState(false);
+  const [minLoadingTimeCompleted, setMinLoadingTimeCompleted] = useState(false);
+  const [loadingProgress, setLoadingProgress] = useState(10);
   const [searchLoading, setSearchLoading] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [page, setPage] = useState(0);
@@ -37,6 +52,9 @@ function Home() {
   const [newNoteContent, setNewNoteContent] = useState("");
   const [noteSaving, setNoteSaving] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+
+  // Initialize sync service
+  const { syncStatus, forceSync, clearCache } = useSyncService();
 
   const debouncedSearch = useCallback(
     debounce((query) => {
@@ -68,20 +86,52 @@ function Home() {
     const query = e.target.value;
     setSearchQuery(query);
 
-    // Directly search IndexedDB without debounce
-    searchContentInDB(query).then((localResults) => {
-      if (localResults.length > 0) {
+    // Check if query contains filters
+    const queryHasFilters = hasFilters(query);
+    
+    if (queryHasFilters) {
+      // For filtered queries, only search IndexedDB
+      searchContentInDB(query).then((localResults) => {
         setCardsData(localResults);
-        setHasMore(false);
-      } else {
-        // Use debounced search for Supabase fallback
+        setHasMore(false); // No pagination for filtered results
+      }).catch((error) => {
+        console.error('Error during filtered search:', error);
+        setCardsData([]);
+      });
+    } else {
+      // For non-filtered queries, search IndexedDB first, then fallback to Supabase
+      searchContentInDB(query).then((localResults) => {
+        if (localResults.length > 0) {
+          setCardsData(localResults);
+          setHasMore(false);
+        } else {
+          // Use debounced search for Supabase fallback
+          debouncedSearch(query);
+        }
+      }).catch((error) => {
+        console.error('Error during local search:', error);
         debouncedSearch(query);
-      }
-    });
+      });
+    }
   };
 
   useEffect(() => {
-    // Check for existing session
+    // Start minimum loading timer (5 seconds)
+    const minLoadingTimer = setTimeout(() => {
+      setMinLoadingTimeCompleted(true);
+    }, 5000); // 5 seconds
+
+    // Gradual progress simulation
+    const progressInterval = setInterval(() => {
+      setLoadingProgress(prev => {
+        if (prev < 30) return prev + Math.random() * 3 + 1; // Faster initial progress
+        if (prev < 60) return prev + Math.random() * 2 + 0.5; // Medium progress
+        if (prev < 85) return prev + Math.random() * 1 + 0.2; // Slower progress
+        return prev; // Stop at 85% until data loads
+      });
+    }, 200);
+
+    // Check for existing session and load data in parallel
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       if (session) {
@@ -89,10 +139,18 @@ function Home() {
           .then(({ data, hasMore }) => {
             setCardsData(data);
             setHasMore(hasMore);
+            setDataLoaded(true); // Mark data as loaded
+            setLoadingProgress(95); // Jump to 95% when data loads
           })
-          .catch((error) => console.error('Error during initial fetch:', error));
+          .catch((error) => {
+            console.error('Error during initial fetch:', error);
+            setDataLoaded(true); // Still mark as "loaded" even if failed
+            setLoadingProgress(95);
+          });
+      } else {
+        setDataLoaded(true); // No session, consider "loaded"
+        setLoadingProgress(95);
       }
-      setIsLoading(false);
     });
 
     // Listen for auth changes
@@ -106,8 +164,26 @@ function Home() {
       }
     });
 
-    return () => subscription?.unsubscribe();
+    // Cleanup timer on unmount
+    return () => {
+      clearTimeout(minLoadingTimer);
+      clearInterval(progressInterval);
+      subscription?.unsubscribe();
+    };
   }, []);
+
+  // Effect to handle when both conditions are met
+  useEffect(() => {
+    if (dataLoaded && minLoadingTimeCompleted) {
+      // Complete the progress to 100%
+      setLoadingProgress(100);
+      
+      // Small delay for smooth transition
+      setTimeout(() => {
+        setIsLoading(false);
+      }, 800);
+    }
+  }, [dataLoaded, minLoadingTimeCompleted]);
 
   const lastCardElementRef = useCallback((node) => {
     if (searchLoading) return;
@@ -154,8 +230,15 @@ function Home() {
       setPage(0);
       setHasMore(true);
 
+      // Clear IndexedDB using sync service
+      await clearCache();
+      
       // Force refresh of all data
-      await performSearch('', 0);
+      await performSearch('', 0, session.user.id)
+        .then(({ data, hasMore }) => {
+          setCardsData(data);
+          setHasMore(hasMore);
+        });
       
       return Promise.resolve();
     } catch (error) {
@@ -167,17 +250,27 @@ function Home() {
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e) => {
+      // Allow Escape key to work even when focus is on an input or textarea
+      if (e.key === 'Escape') {
+        const searchInput = document.querySelector('.search-bar input');
+        if (document.activeElement === searchInput) {
+          searchInput.blur(); // Remove focus from the search bar
+        }
+        return; // Exit early for Escape key
+      }
+
+      // Ignore other shortcuts if the focus is on an input or textarea
+      const activeElement = document.activeElement;
+      if (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA') {
+        return;
+      }
+
       if (e.key === '/') {
         e.preventDefault();
         document.querySelector('.search-bar input').focus();
       } else if (e.key === 'n') {
         e.preventDefault();
         setShowNoteModal(true);
-      } else if (e.key === 'Escape') {
-        const searchInput = document.querySelector('.search-bar input');
-        if (document.activeElement === searchInput) {
-          searchInput.blur();
-        }
       }
     };
 
@@ -187,9 +280,26 @@ function Home() {
     };
   }, []);
 
-  // Loading state
+  // Loading state with enhanced UX
   if (isLoading) {
-    return <div className="loading">Loading...</div>;
+    const getLoadingMessage = () => {
+      if (loadingProgress < 30) return "Connecting neural pathways...";
+      if (loadingProgress < 60) return "Finalizing your neural network...";
+      if (loadingProgress < 85) return "Expanding digital consciousness...";
+      if (loadingProgress < 95) return "Syncing with the cosmos...";
+      return "SuperMind is awakening...";
+    };
+
+    return (
+      <NeuroCosmicLoader 
+        progress={loadingProgress}
+        message={getLoadingMessage()}
+        onLoadingComplete={() => {
+          // This callback won't override our logic, but provides feedback
+          console.log('NeuroCosmicLoader animation completed');
+        }} 
+      />
+    );
   }
 
   // Show auth screen if not authenticated
@@ -303,35 +413,40 @@ function Home() {
             className="my-masonry-grid"
             columnClassName="my-masonry-grid_column"
           >
-            {displayData.map((card, index) => (
-              <div
-                key={card.id || index}
-                ref={index === displayData.length - 1 ? lastCardElementRef : null}
-              >
-                <MemoizedCard
-                  thumbnailUrl={card.thumbnail_url}
-                  title={card.title}
-                  type={card.video_type}
-                  url={card.original_url}
-                  dateAdded={card.date_added}
-                  content={card.user_notes || card.content}
-                  onClick={() => {
-                    if (card.isAddNoteCard) {
-                      setShowNoteModal(true);
-                    } else {
-                      setSelectedCard({
-                        ...card,
-                        url: card.original_url,
-                        Title: card.title,
-                        Summary: card.summary,
-                        Tags: card.tags,
-                        video_type: card.video_type
-                      });
-                    }
-                  }}
-                />
-              </div>
-            ))}
+            {displayData.map((card, index) => {
+              // Create a stable unique key based on card content
+              const stableKey = card.id || card.original_url || card.title || `card-${index}`;
+              
+              return (
+                <div
+                  key={stableKey}
+                  ref={index === displayData.length - 1 ? lastCardElementRef : null}
+                >
+                  <MemoizedCard
+                    thumbnailUrl={card.thumbnail_url}
+                    title={card.title}
+                    type={card.video_type}
+                    url={card.original_url}
+                    dateAdded={card.date_added}
+                    content={card.user_notes || card.content}
+                    onClick={() => {
+                      if (card.isAddNoteCard) {
+                        setShowNoteModal(true);
+                      } else {
+                        setSelectedCard({
+                          ...card,
+                          url: card.original_url,
+                          Title: card.title,
+                          Summary: card.summary,
+                          Tags: card.tags,
+                          video_type: card.video_type
+                        });
+                      }
+                    }}
+                  />
+                </div>
+              );
+            })}
           </Masonry>
         ) : (
           <p className="no-content">No matching content found</p>
